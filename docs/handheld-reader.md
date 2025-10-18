@@ -248,6 +248,7 @@ if __name__ == "__main__":
 | 2025-02-15 | Raspberry Pi OS インストール | 最新の 64-bit Desktop 版を Raspberry Pi Imager で書き込み。RealVNC 経由で Mac から操作予定。 |
 | 2025-02-15 | 初期設定 | SPI / SSH / Wi-Fi 設定済み。`apt install` 実行時に再起動する問題が発生したが、HDMI・マウス・キーボードを外し VNC越しに再実行したところ完了。 |
 | 2025-02-15 | Step 1: e-Paper ベンダーテスト | `epd_2in13_V4_test.py` を実行し、画面フラッシュとテスト画像表示を確認。ログに `e-Paper busy` → `Clear ...` → `Goto Sleep` が出力。 |
+| 2025-02-15 | Step 2: スキャナ接続確認 | MINJCODE MJ2818A を接続。`lsusb` で `34eb:1502` を確認。`dmesg` より USB HID Keyboard として認識（`hid-generic ...`）。 |
 
 ### 7.1 実行コマンドメモ
 - 依存パッケージ導入（再起動対策後に完了）:
@@ -264,3 +265,18 @@ if __name__ == "__main__":
   cd e-Paper/RaspberryPi_JetsonNano/python/examples
   sudo -E python3 epd_2in13_V4_test.py
   ```
+- スキャナ確認関連:
+  ```bash
+  lsusb
+  dmesg | tail -n 20
+  dmesg | grep -i hid
+  sudo apt install -y evtest        # HID 入力イベント確認用（未導入だったため次回実施）
+  sudo evtest                       # 追加後、デバイス一覧からスキャナを選択
+  ```
+
+## 8. スキャナ入力検証メモ（進行中）
+- MINJCODE MJ2818A は初期状態で USB HID キーボードとして認識。`/dev/ttyACM*` や `/dev/ttyUSB*` は未作成。
+- `evtest` を導入済み。次は `sudo evtest` でデバイスを選び、バーコード読取時のイベントを確認する。
+- HID で運用する場合に備え、キーマップとシフトキー制御の実装を強化する。
+- `sudo evtest` で `/dev/input/event2` を選択し、スキャン時に `KEY_LEFTSHIFT` と英字キーが対で出力されることを確認（例: Shift→KEY_T→Shift解除→KEY_T→Shift→KEY_E…）。大文字を送るたびに Shift 押下/解放イベントが発行されるため、HID 実装側で Shift 状態をトグル管理する。
+- バーコード終端時に `KEY_ENTER`（値 0/1）が送られることを確認。改行処理は Enter を区切りとして扱う。
