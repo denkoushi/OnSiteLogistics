@@ -250,6 +250,7 @@ if __name__ == "__main__":
 | 2025-02-15 | Step 1: e-Paper ベンダーテスト | `epd_2in13_V4_test.py` を実行し、画面フラッシュとテスト画像表示を確認。ログに `e-Paper busy` → `Clear ...` → `Goto Sleep` が出力。 |
 | 2025-02-15 | Step 2: スキャナ接続確認 | MINJCODE MJ2818A を接続。`lsusb` で `34eb:1502` を確認。`dmesg` より USB HID Keyboard として認識（`hid-generic ...`）。 |
 | 2025-02-15 | Step 3: 統合スクリプト確認 | `handheld_scan_display.py` を実行し、A → B の順でスキャン時に電子ペーパーへ `Status: DONE` とともに `B` 行まで表示されることを確認。長い URL バーコードも省略表示で反映。 |
+| 2025-10-18 | サーバー連携テスト | `config.json` を作成し、サーバー側（tool-management-system02）で 8501/tcp を許可。疎通後、キューに滞留していた送信が自動再送されることを確認。 |
 
 ### 7.1 実行コマンドメモ
 - 依存パッケージ導入（再起動対策後に完了）:
@@ -281,6 +282,15 @@ if __name__ == "__main__":
   sudo chmod +x ~/scan_test.py
   sudo ~/scan_test.py
   ```
+- リポジトリ初期配置（Mac → Pi Zero）:
+  ```bash
+  # Mac 側
+  scp -r ~/OnSiteLogistics pi@handheldpi.local:~/OnSiteLogistics
+
+  # Pi Zero 側
+  ssh pi@handheldpi.local
+  cd ~/OnSiteLogistics
+  ```
 - 送信設定ファイルの配置（例）:
   ```bash
   sudo mkdir -p /etc/onsitelogistics
@@ -290,6 +300,14 @@ if __name__ == "__main__":
 - 手動でキューを確認する（必要に応じて）:
   ```bash
   sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT id, payload, retries FROM scan_queue'
+  ```
+- サーバー疎通テスト（`curl`）:
+  ```bash
+  curl -s -o /dev/null -w '%{http_code}\n' \
+    http://192.168.128.131:8501/api/v1/scans \
+    -H 'Content-Type: application/json' \
+    -H 'Authorization: Bearer <token>' \
+    -d '{"part_code":"PING","location_code":"TEST","scanned_at":"2025-01-01T00:00:00Z"}'
   ```
 
 ## 8. スキャナ入力検証メモ（進行中）
