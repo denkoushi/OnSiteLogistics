@@ -15,3 +15,7 @@
 - `docs/handheld-reader.md`: ハンディリーダ開発ノート
 
 今後の構成として、セットアップや運用手順が固まり次第 `RUNBOOK.md` やサーバー連携仕様書を追加します。
+
+## 設定ファイル
+- サンプル: `config/config.sample.json`
+- 実運用時は `/etc/onsitelogistics/config.json` などにコピーし、API エンドポイント・トークン・デバイス ID を設定してください。
