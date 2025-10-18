@@ -56,7 +56,7 @@
 - **Step 1（完了）**: 電子ペーパー (2.13″ V4) を Pi Zero 2 W から駆動し、Waveshare テストコードで表示確認する。`docs/handheld-reader.md` のセットアップログ 2025-02-15 を参照。
 - **Step 2（完了）**: ハンディスキャナ単体の入力確認（CDC-ACM 優先、HID でも動作させる）。`scan_test.py` で HID 入力を文字列化済み。
 - **Step 3（完了）**: スキャナ入力と電子ペーパー表示を統合し、A→B→完了フローをローカル完結させる。`scripts/handheld_scan_display.py` に状態機械を実装し、`Status: DONE` 表示まで確認済み。
-- **Step 4（進行中）**: サーバー通信（HTTP POST）とローカル再送キューを実装。OnSiteLogistics 側の送信・SQLite キューは実装済み（`scripts/handheld_scan_display.py`）。ウィンドウAの API 受け口と DB upsert をこれから整備する。
+- **Step 4（完了）**: サーバー通信（HTTP POST）とローカル再送キューを実装。`scripts/handheld_scan_display.py` が `/api/v1/scans` へ送信し、通信断時は `~/.onsitelogistics/scan_queue.db` で再送管理する。ウィンドウA（tool-management-system02 `feature/scan-intake`）側で `part_locations` テーブル upsert と `Socket.IO` 配信まで動作確認済み。
 - **Step 5（未着手）**: サイネージ表示／ダッシュボードの仕様策定と実装。
 
 ## 9. 未決・検討事項
@@ -105,7 +105,7 @@
   - サイネージ側が要求するフィールド（部品名、棚、タイムスタンプ、アラートなど）。
   - ネットワーク分離ポリシー（Wi-Fi 経由での直接参照か、Dropbox 等の間接共有か）。
 ## 10. 次のアクション案
-- Step 1 の作業結果を収集し、表示確認ログや写真を残す。
-- ハンディスキャナの機種確定と設定バーコード（CDC/HID 切替、接頭辞付与）の調査。
-- サーバー側で必要となるデータ項目と API インターフェースの草案作成。
-- 既存業務フローの棚卸し（どの工程で誰がスキャンするか）と UI 要件の詳細化。
+- サイネージ表示要件の整理（表示項目・優先順位・更新頻度）とワイヤフレーム作成。
+- `part_location_updated` イベントを購読するサイネージ実装方針（Socket.IO クライアント vs REST フォールバック）の比較検討。
+- サーバー側からサイネージ向けに提供するデータ構造・API/共有ファイル設計とラズパイ Window C への受け渡し手順の確定。
+- API トークンの用途別運用（HANDHELD-* / SIGNAGE-*）とローテーション手順を RUNBOOK / `docs/handheld-reader.md` に反映。
