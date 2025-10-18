@@ -1,0 +1,20 @@
+[Unit]
+Description=OnSiteLogistics Handheld Reader (%i)
+Documentation=https://github.com/denkoushi/OnSiteLogistics
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+Group=%i
+SupplementaryGroups=input
+WorkingDirectory=/home/%i/OnSiteLogistics
+Environment=PYTHONUNBUFFERED=1
+Environment=ONSITE_CONFIG=/etc/onsitelogistics/config.json
+ExecStart=/usr/bin/env python3 /home/%i/OnSiteLogistics/scripts/handheld_scan_display.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
