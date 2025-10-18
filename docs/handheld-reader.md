@@ -288,6 +288,7 @@ if __name__ == "__main__":
 - `sudo evtest` で `/dev/input/event2` を選択し、スキャン時に `KEY_LEFTSHIFT` と英字キーが対で出力されることを確認（例: Shift→KEY_T→Shift解除→KEY_T→Shift→KEY_E…）。大文字を送るたびに Shift 押下/解放イベントが発行されるため、HID 実装側で Shift 状態をトグル管理する。
 - バーコード終端時に `KEY_ENTER`（値 0/1）が送られることを確認。改行処理は Enter を区切りとして扱う。
 - `scan_test.py` を作成・実行し、`SCAN: TEST-002` と出力されることを確認。HID 入力から文字列化する処理が機能した。
-- Step 3 として `scripts/handheld_scan_display.py` を用意（Pi 上に転送後、`sudo ./handheld_scan_display.py` で実行）。A/B の順序管理と電子ペーパー表示を統合する。デフォルトの入力デバイスは `/dev/input/event2` としているため、環境に応じて `DEVICE_PATH` を更新する。モジュール import は `waveshare_epd` / `waveshare_epaper` の順で試行し、さらに `e-Paper/RaspberryPi_JetsonNano/python/lib`（SUDO_USER を考慮）を動的に検索する。起動時にスキャナを `grab()` してコンソールへのキー入力を抑止、表示文言は ASCII のみ（例: "Status: WAIT"）。
+- Step 3 として `scripts/handheld_scan_display.py` を用意（Pi 上に転送後、`sudo ./handheld_scan_display.py` で実行）。A/B の順序管理と電子ペーパー表示を統合する。デフォルトの入力デバイスは `/dev/input/event2` としているため、環境に応じて `DEVICE_PATH` を更新する。モジュール import は `waveshare_epd` / `waveshare_epaper` の順で試行し、さらに `e-Paper/RaspberryPi_JetsonNano/python/lib`（SUDO_USER を考慮）を動的に検索する。起動時にスキャナを `grab()` してコンソールへのキー入力を抑止、表示文言は ASCII のみ（例: "Status: WAIT"）。長いコードは 24 文字で省略表示されるように調整（例: `https://...`）。
+- 使用中スキャナ: Eyoyo MJ2818A（Amazon ASIN: `B0CSDKSBC2`）。現状は USB HID 動作のみ確認済みで、公式サイト（https://jp.eyoyousa.com/ および英語版）のダウンロード資料にも CDC-ACM / USB-COM 切替コードは見つからずシリアル対応は未確認。必要であれば付属マニュアルの再確認か Eyoyo サポート問い合わせが必要。
 - 長いコードは 24 文字で省略表示されるように調整（例: `https://...`）。
 - 空文字（スキャナから Enter のみが送られた場合）は無視するログを追加し、誤検知で状態が進まないようにした。
