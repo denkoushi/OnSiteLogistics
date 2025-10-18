@@ -10,11 +10,16 @@ Run on Raspberry Pi Zero 2 W:
     sudo ./handheld_scan_display.py
 """
 
+import json
+import logging
 import os
+import sqlite3
 import time
+import uuid
 from pathlib import Path
 from typing import Optional
 
+import requests
 from evdev import InputDevice, categorize, ecodes
 from PIL import Image, ImageDraw, ImageFont
 
@@ -53,6 +58,13 @@ PARTIAL_BATCH_N = 5
 CANCEL_CODES = {"CANCEL", "RESET"}
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_SIZE = 22
+
+CONFIG_SEARCH_PATHS = [
+    os.environ.get("ONSITE_CONFIG"),
+    "/etc/onsitelogistics/config.json",
+    str(Path(__file__).resolve().parent.parent / "config" / "config.json"),
+]
+DEFAULT_TIMEOUT = 3
 
 
 class KeyboardScanner:
@@ -218,7 +230,98 @@ def format_line(prefix: str, code: str, done: bool, max_len: int = 24) -> str:
     return f"{prefix}: {text}{suffix}"
 
 
+class ScanTransmitter:
+    def __init__(self, config: dict):
+        self.api_url = config["api_url"]
+        self.api_token = config["api_token"]
+        self.device_id = config["device_id"]
+        self.timeout = config.get("timeout_seconds", DEFAULT_TIMEOUT)
+        queue_path = Path(config.get("queue_db_path", "~/.onsitelogistics/scan_queue.db")).expanduser()
+        queue_path.parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(queue_path)
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS scan_queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                payload TEXT NOT NULL,
+                retries INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        self.conn.commit()
+
+    def _request_headers(self) -> dict:
+        return {
+            "Authorization": f"Bearer {self.api_token}",
+            "Content-Type": "application/json",
+        }
+
+    def _post(self, payload: dict) -> bool:
+        try:
+            logging.info("Posting scan: %s", payload.get("scan_id"))
+            response = requests.post(
+                self.api_url,
+                json=payload,
+                headers=self._request_headers(),
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            logging.info("Server accepted scan %s", payload.get("scan_id"))
+            return True
+        except requests.RequestException as exc:
+            logging.warning("Failed to post scan %s: %s", payload.get("scan_id"), exc)
+            return False
+
+    def enqueue(self, payload: dict, retries: int = 0) -> None:
+        logging.info("Queueing scan %s for retry", payload.get("scan_id"))
+        self.conn.execute(
+            "INSERT INTO scan_queue (payload, retries, created_at) VALUES (?, ?, ?)",
+            (json.dumps(payload), retries, time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
+        )
+        self.conn.commit()
+
+    def send_or_queue(self, payload: dict) -> None:
+        if not self._post(payload):
+            self.enqueue(payload, payload.get("retries", 0))
+
+    def drain(self) -> None:
+        cursor = self.conn.execute(
+            "SELECT id, payload, retries FROM scan_queue ORDER BY id ASC LIMIT 20"
+        )
+        rows = cursor.fetchall()
+        for row_id, payload_json, retries in rows:
+            payload = json.loads(payload_json)
+            payload["retries"] = retries + 1
+            if self._post(payload):
+                self.conn.execute("DELETE FROM scan_queue WHERE id=?", (row_id,))
+                self.conn.commit()
+            else:
+                self.conn.execute(
+                    "UPDATE scan_queue SET retries=? WHERE id=?",
+                    (payload["retries"], row_id),
+                )
+                self.conn.commit()
+                break
+
+
+def load_config() -> dict:
+    for candidate in CONFIG_SEARCH_PATHS:
+        if candidate and Path(candidate).expanduser().is_file():
+            with open(Path(candidate).expanduser(), "r", encoding="utf-8") as fh:
+                return json.load(fh)
+    raise FileNotFoundError(
+        "Config file not found. Set ONSITE_CONFIG or create /etc/onsitelogistics/config.json"
+    )
+
+
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+    config = load_config()
+    transmitter = ScanTransmitter(config)
     scanner = KeyboardScanner(DEVICE_PATH)
     ui = EPaperUI()
     print(f"[INFO] Scanner device: {scanner.device.path} ({scanner.device.name})")
@@ -274,6 +377,16 @@ def main() -> None:
                 ui.update(a=format_line("A", code_a, True),
                           b=format_line("B", code_b, True),
                           status="Status: DONE", force_full=True)
+                payload = {
+                    "scan_id": str(uuid.uuid4()),
+                    "device_id": transmitter.device_id,
+                    "part_code": code_a,
+                    "location_code": code_b,
+                    "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "retries": 0,
+                }
+                transmitter.send_or_queue(payload)
+            transmitter.drain()
             print(f"[STATE] transition -> WAIT_A (completed) with B={code_b}")
             state = "WAIT_A"
             code_a = None
@@ -283,6 +396,7 @@ def main() -> None:
     finally:
         scanner.close()
         ui.sleep()
+        transmitter.conn.close()
 
 
 if __name__ == "__main__":
