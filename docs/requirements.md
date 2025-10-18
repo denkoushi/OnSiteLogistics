@@ -56,7 +56,7 @@
 - **Step 1（完了）**: 電子ペーパー (2.13″ V4) を Pi Zero 2 W から駆動し、Waveshare テストコードで表示確認する。`docs/handheld-reader.md` のセットアップログ 2025-02-15 を参照。
 - **Step 2（完了）**: ハンディスキャナ単体の入力確認（CDC-ACM 優先、HID でも動作させる）。`scan_test.py` で HID 入力を文字列化済み。
 - **Step 3（完了）**: スキャナ入力と電子ペーパー表示を統合し、A→B→完了フローをローカル完結させる。`scripts/handheld_scan_display.py` に状態機械を実装し、`Status: DONE` 表示まで確認済み。
-- **Step 4（未着手）**: サーバー通信（HTTP POST）とローカル再送キューを実装。
+- **Step 4（進行中）**: サーバー通信（HTTP POST）とローカル再送キューを実装。OnSiteLogistics 側の送信・SQLite キューは実装済み（`scripts/handheld_scan_display.py`）。ウィンドウAの API 受け口と DB upsert をこれから整備する。
 - **Step 5（未着手）**: サイネージ表示／ダッシュボードの仕様策定と実装。
 
 ## 9. 未決・検討事項
