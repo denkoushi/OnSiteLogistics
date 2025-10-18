@@ -236,8 +236,31 @@ if __name__ == "__main__":
 
 必要な情報が増えた場合は本ファイルに追記し、決定事項は `docs/requirements.md` へリンクを残すこと。
 
+### 6.1 Raspberry Pi Zero 2 W セットアップ時の注意
+- **電源余裕の確保**: 5 V/2 A 以上のアダプタを使用し、`apt install` など高負荷処理時は HDMI・マウス・キーボードなどの周辺機器を外しておくと安定した。必要に応じてセルフパワー USB ハブを利用する。
+- **リモート操作**: 初期構築では RealVNC を使い、VNC 経由で作業することで HDMI・USB 機器を外した状態でも操作可能だった。
+- **低電圧監視**: `vcgencmd get_throttled` や `dmesg | grep -i voltage` で低電圧警告を確認できる。警告が出た場合は電源系を見直す。
+- **再現手順の標準化**: 新しい Pi を構築する際も、「周辺機器を最小構成にする→VNC/SSH で接続→依存パッケージ導入→電子ペーパー動作確認」という手順を踏襲する。
+
 ## 7. セットアップログ
 | 日付 | 内容 | 備考 |
 | --- | --- | --- |
 | 2025-02-15 | Raspberry Pi OS インストール | 最新の 64-bit Desktop 版を Raspberry Pi Imager で書き込み。RealVNC 経由で Mac から操作予定。 |
-| 2025-02-15 | 初期設定 | SPI 有効化、`ssh` 有効化、Wi-Fi 接続設定を実施予定。完了後に詳細追記する。 |
+| 2025-02-15 | 初期設定 | SPI / SSH / Wi-Fi 設定済み。`apt install` 実行時に再起動する問題が発生したが、HDMI・マウス・キーボードを外し VNC越しに再実行したところ完了。 |
+| 2025-02-15 | Step 1: e-Paper ベンダーテスト | `epd_2in13_V4_test.py` を実行し、画面フラッシュとテスト画像表示を確認。ログに `e-Paper busy` → `Clear ...` → `Goto Sleep` が出力。 |
+
+### 7.1 実行コマンドメモ
+- 依存パッケージ導入（再起動対策後に完了）:
+  ```bash
+  sudo apt update
+  sudo apt install -y python3-pip python3-rpi.gpio python3-spidev \
+      python3-evdev python3-serial python3-pil fonts-dejavu-core git unzip
+  ```
+- Waveshare サンプル取得・展開・テスト:
+  ```bash
+  cd ~
+  wget -O E-Paper_code.zip https://files.waveshare.com/upload/7/71/E-Paper_code.zip
+  unzip E-Paper_code.zip -d e-Paper
+  cd e-Paper/RaspberryPi_JetsonNano/python/examples
+  sudo -E python3 epd_2in13_V4_test.py
+  ```
