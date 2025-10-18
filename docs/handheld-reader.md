@@ -240,3 +240,4 @@ if __name__ == "__main__":
 | 日付 | 内容 | 備考 |
 | --- | --- | --- |
 | 2025-02-15 | Raspberry Pi OS インストール | 最新の 64-bit Desktop 版を Raspberry Pi Imager で書き込み。RealVNC 経由で Mac から操作予定。 |
+| 2025-02-15 | 初期設定 | SPI 有効化、`ssh` 有効化、Wi-Fi 接続設定を実施予定。完了後に詳細追記する。 |
