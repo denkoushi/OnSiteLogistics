@@ -310,6 +310,41 @@ if __name__ == "__main__":
     -d '{"part_code":"PING","location_code":"TEST","scanned_at":"2025-01-01T00:00:00Z"}'
   ```
 
+## 9. systemd 常駐化（handheld@.service）
+
+手動実行だと SSH セッション切断時にスクリプトも止まってしまうため、`config/systemd/handheld@.service` を使って systemd 常駐化する。
+
+1. **サービスファイル設置**
+   ```bash
+   sudo install -m 644 config/systemd/handheld@.service /etc/systemd/system/handheld@.service
+   sudo systemctl daemon-reload
+   ```
+
+2. **サービス登録（ユーザー名を指定）**  
+   Raspberry Pi の一般ユーザーが `denkonzero` の例:
+   ```bash
+   sudo systemctl enable --now handheld@denkonzero.service
+   ```
+   - `WorkingDirectory` と `ExecStart` は `/home/<ユーザー>/OnSiteLogistics` を参照する。ユーザー名が異なる場合は適宜置き換える。
+   - HID デバイスにアクセスするため、サービスは同名グループで稼働し `input` グループも追加（`SupplementaryGroups=input`）している。必要に応じて `sudo usermod -aG input <ユーザー>` も実行する。
+
+3. **状態確認／ログ**
+   ```bash
+    sudo systemctl status handheld@denkonzero.service
+    journalctl -u handheld@denkonzero.service -n 100
+   ```
+
+4. **停止・再起動**
+   ```bash
+   sudo systemctl restart handheld@denkonzero.service
+   sudo systemctl stop handheld@denkonzero.service
+   ```
+
+5. **設定ファイル変更時**  
+   `/etc/onsitelogistics/config.json` を更新したら `sudo systemctl restart handheld@denkonzero.service` を実行し最新設定を反映する。
+
+> **補足**: `ExecStart` は `python3` を直接呼び出す。仮想環境を使う場合は `ExecStart=/home/<ユーザー>/OnSiteLogistics/.venv/bin/python ...` などに調整し、環境変数 `PATH` もサービスドロップインで上書きする。
+
 ## 8. スキャナ入力検証メモ（進行中）
 - MINJCODE MJ2818A は初期状態で USB HID キーボードとして認識。`/dev/ttyACM*` や `/dev/ttyUSB*` は未作成。
 - `evtest` を導入済み。次は `sudo evtest` でデバイスを選び、バーコード読取時のイベントを確認する。
