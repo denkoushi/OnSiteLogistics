@@ -256,7 +256,8 @@ if __name__ == "__main__":
   ```bash
   sudo apt update
   sudo apt install -y python3-pip python3-rpi.gpio python3-spidev \
-      python3-evdev python3-serial python3-pil fonts-dejavu-core git unzip
+      python3-evdev python3-serial python3-pil python3-requests \
+      fonts-dejavu-core git unzip
   ```
 - Waveshare サンプル取得・展開・テスト:
   ```bash
@@ -280,6 +281,16 @@ if __name__ == "__main__":
   sudo chmod +x ~/scan_test.py
   sudo ~/scan_test.py
   ```
+- 送信設定ファイルの配置（例）:
+  ```bash
+  sudo mkdir -p /etc/onsitelogistics
+  sudo cp ~/OnSiteLogistics/config/config.sample.json /etc/onsitelogistics/config.json
+  sudo nano /etc/onsitelogistics/config.json   # api_url/api_token/device_id を編集
+  ```
+- 手動でキューを確認する（必要に応じて）:
+  ```bash
+  sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT id, payload, retries FROM scan_queue'
+  ```
 
 ## 8. スキャナ入力検証メモ（進行中）
 - MINJCODE MJ2818A は初期状態で USB HID キーボードとして認識。`/dev/ttyACM*` や `/dev/ttyUSB*` は未作成。
@@ -292,3 +303,4 @@ if __name__ == "__main__":
 - 使用中スキャナ: Eyoyo MJ2818A（Amazon ASIN: `B0CSDKSBC2`）。現状は USB HID 動作のみ確認済みで、公式サイト（https://jp.eyoyousa.com/ および英語版）のダウンロード資料にも CDC-ACM / USB-COM 切替コードは見つからずシリアル対応は未確認。必要であれば付属マニュアルの再確認か Eyoyo サポート問い合わせが必要。
 - 長いコードは 24 文字で省略表示されるように調整（例: `https://...`）。
 - 空文字（スキャナから Enter のみが送られた場合）は無視するログを追加し、誤検知で状態が進まないようにした。
+- `handheld_scan_display.py` にサーバー送信機能と SQLite キュー（`~/.onsitelogistics/scan_queue.db`）を実装済み。設定ファイルは `/etc/onsitelogistics/config.json` などに配置し、`api_url` / `api_token` / `device_id` を指定する。送信失敗時はログに WARN を出し、キューへ保存後に定期的に再送する仕様。
