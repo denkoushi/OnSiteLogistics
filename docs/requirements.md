@@ -68,6 +68,42 @@
 - 電子ペーパーの更新頻度と長期運用による劣化への対策。
 - MJ2818A スキャナのシリアル（USB-COM/CDC-ACM）対応有無。現状は HID で稼働中だが公式資料で切替コードが未確認。シリアル運用が必要ならメーカーへの確認が必要。
 
+## 11. サーバー連携（ウィンドウA）要件案
+- **基本方針**: OnSiteLogistics 側はハンディリーダからの最小情報のみ送信し、ウィンドウA（tool-management-system02）側でデータ蓄積・通知・サイネージ連携を担う。双方向通信は基本的に無し（必要最低限の応答のみ）。
+- **API インターフェース（案）**
+  - エンドポイント: `POST /api/v1/scans`（JSON）
+  - ヘッダ: `Authorization: Bearer <shared_token>`（shared token で十分。後続で相互認証が必要なら調整）
+  - リクエストボディ例:
+    ```json
+    {
+      "scan_id": "20250215-00123",          // Pi 側で生成（時刻＋連番など）
+      "device_id": "pi-zero2w-01",
+      "part_code": "TEST-002",
+      "location_code": "SHELF-05",
+      "scanned_at": "2025-02-15T07:12:34Z",  // UTC ISO8601
+      "sequence": {"order": ["A", "B"]},     // 2回読みの順序情報
+      "retries": 0                           // 再送時は increment
+    }
+    ```
+  - レスポンス（200 OK）:
+    ```json
+    {
+      "accepted": true,
+      "server_received_at": "2025-02-15T07:12:35Z"
+    }
+    ```
+    - `accepted=false` や 4xx/5xx 時は、Pi 側でローカルキューに残して再送。
+- **再送方針**: Pi 側で SQLite 等に保存し、成功応答を得るまで指数バックオフで再送。一定回数失敗で Status 表示に「QUEUED/ERROR」を掲示して現場通知。
+- **セキュリティ / ネットワーク**: 工場内ローカル LAN (WPA2) での運用を前提。API トークンは `/etc/onsitelogistics/credentials.json` などに保存し、Git 管理対象外。HTTPS 利用可否はウィンドウAの環境に依存（可能であればリバースプロキシ経由で TLS 終端）。
+- **ログ共有**: サーバーからの応答内容は `handheld_scan_display.py` 側で INFO ログに残し、必要に応じて `docs/handheld-reader.md` に運用手順を追記する。
+- **既存インフラとの整合**: ウィンドウA は Flask ベースの 3 ペイン UI を持ち、Docker Compose 上で PostgreSQL を含むサービス群を稼働させている。今回のスキャン記録もその構成を活用し、PostgreSQL に所在履歴を追記するテーブルや、既存 UI への表示追加を想定する（リポジトリ改修時は必ず新しいブランチで作業）。
+
+## 12. サイネージ連携（ウィンドウC）留意点
+- ECG（RaspberryPizero2W_withDropbox）側でサイネージ表示を構築済み。OnSiteLogistics はスキャン結果をローカルサーバーへ集約するのみとし、サイネージとは API やファイル共有など最小限の引き渡し方法を協議（例: サーバーが CSV/JSON を共有ドロップボックスへ出力）。
+- 今後の調整事項:
+  - サーバー側で生成するデータ形式・更新頻度。
+  - サイネージ側が要求するフィールド（部品名、棚、タイムスタンプ、アラートなど）。
+  - ネットワーク分離ポリシー（Wi-Fi 経由での直接参照か、Dropbox 等の間接共有か）。
 ## 10. 次のアクション案
 - Step 1 の作業結果を収集し、表示確認ログや写真を残す。
 - ハンディスキャナの機種確定と設定バーコード（CDC/HID 切替、接頭辞付与）の調査。
