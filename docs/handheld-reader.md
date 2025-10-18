@@ -249,6 +249,7 @@ if __name__ == "__main__":
 | 2025-02-15 | 初期設定 | SPI / SSH / Wi-Fi 設定済み。`apt install` 実行時に再起動する問題が発生したが、HDMI・マウス・キーボードを外し VNC越しに再実行したところ完了。 |
 | 2025-02-15 | Step 1: e-Paper ベンダーテスト | `epd_2in13_V4_test.py` を実行し、画面フラッシュとテスト画像表示を確認。ログに `e-Paper busy` → `Clear ...` → `Goto Sleep` が出力。 |
 | 2025-02-15 | Step 2: スキャナ接続確認 | MINJCODE MJ2818A を接続。`lsusb` で `34eb:1502` を確認。`dmesg` より USB HID Keyboard として認識（`hid-generic ...`）。 |
+| 2025-02-15 | Step 3: 統合スクリプト確認 | `handheld_scan_display.py` を実行し、A → B の順でスキャン時に電子ペーパーへ `Status: DONE` とともに `B` 行まで表示されることを確認。長い URL バーコードも省略表示で反映。 |
 
 ### 7.1 実行コマンドメモ
 - 依存パッケージ導入（再起動対策後に完了）:
@@ -273,6 +274,12 @@ if __name__ == "__main__":
   sudo apt install -y evtest        # HID 入力イベント確認用（未導入だったため次回実施）
   sudo evtest                       # 追加後、デバイス一覧からスキャナを選択
   ```
+- HID 入力テスト用スクリプト:
+  ```bash
+  nano ~/scan_test.py
+  sudo chmod +x ~/scan_test.py
+  sudo ~/scan_test.py
+  ```
 
 ## 8. スキャナ入力検証メモ（進行中）
 - MINJCODE MJ2818A は初期状態で USB HID キーボードとして認識。`/dev/ttyACM*` や `/dev/ttyUSB*` は未作成。
@@ -280,3 +287,7 @@ if __name__ == "__main__":
 - HID で運用する場合に備え、キーマップとシフトキー制御の実装を強化する。
 - `sudo evtest` で `/dev/input/event2` を選択し、スキャン時に `KEY_LEFTSHIFT` と英字キーが対で出力されることを確認（例: Shift→KEY_T→Shift解除→KEY_T→Shift→KEY_E…）。大文字を送るたびに Shift 押下/解放イベントが発行されるため、HID 実装側で Shift 状態をトグル管理する。
 - バーコード終端時に `KEY_ENTER`（値 0/1）が送られることを確認。改行処理は Enter を区切りとして扱う。
+- `scan_test.py` を作成・実行し、`SCAN: TEST-002` と出力されることを確認。HID 入力から文字列化する処理が機能した。
+- Step 3 として `scripts/handheld_scan_display.py` を用意（Pi 上に転送後、`sudo ./handheld_scan_display.py` で実行）。A/B の順序管理と電子ペーパー表示を統合する。デフォルトの入力デバイスは `/dev/input/event2` としているため、環境に応じて `DEVICE_PATH` を更新する。モジュール import は `waveshare_epd` / `waveshare_epaper` の順で試行し、さらに `e-Paper/RaspberryPi_JetsonNano/python/lib`（SUDO_USER を考慮）を動的に検索する。起動時にスキャナを `grab()` してコンソールへのキー入力を抑止、表示文言は ASCII のみ（例: "Status: WAIT"）。
+- 長いコードは 24 文字で省略表示されるように調整（例: `https://...`）。
+- 空文字（スキャナから Enter のみが送られた場合）は無視するログを追加し、誤検知で状態が進まないようにした。
