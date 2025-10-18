@@ -13,6 +13,7 @@
 - `docs/documentation-guidelines.md`: 文書運用ルール
 - `docs/requirements.md`: 要件・決定事項・未決課題
 - `docs/handheld-reader.md`: ハンディリーダ開発ノート
+- 初回導入やサーバー疎通手順は `docs/handheld-reader.md` の「実行コマンドメモ」「セットアップログ」を参照してください。
 
 今後の構成として、セットアップや運用手順が固まり次第 `RUNBOOK.md` やサーバー連携仕様書を追加します。
 
