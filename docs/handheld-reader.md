@@ -239,4 +239,4 @@ if __name__ == "__main__":
 ## 7. セットアップログ
 | 日付 | 内容 | 備考 |
 | --- | --- | --- |
-| 未実施 | Raspberry Pi OS イメージ作成 | 初期開発中は RealVNC で操作できるよう、Desktop 版 (32-bit) を選択予定。安定後に Lite 版へ移行または CLI ブートへ切替検討。詳細設定は書き込み完了時に追記する。 |
+| 2025-02-15 | Raspberry Pi OS インストール | 最新の 64-bit Desktop 版を Raspberry Pi Imager で書き込み。RealVNC 経由で Mac から操作予定。 |
