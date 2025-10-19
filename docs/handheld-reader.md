@@ -454,6 +454,7 @@ udevadm info -q property -n /dev/ttyACM0 | grep -E 'ID_MODEL=|ID_VENDOR='
   sudo systemctl restart handheld@denkonzero.service
   ```
 - HID デバイスがなくても電子ペーパー表示や API 送信が動作するか、A/B コード読み取りで実地確認する。
+- 上記 udev ルールと systemd override は `scripts/setup_serial_env.sh`（sudo 実行、引数はユーザー名）で一括適用できる。Pi 側で `git pull` 後に `sudo ./scripts/setup_serial_env.sh denkonzero` を実行すると、ルール作成・リロード・サービス再起動まで自動化される。
 
 ### 11.4 今回の課題整理と再発防止策
 
