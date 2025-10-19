@@ -12,6 +12,7 @@ SupplementaryGroups=input
 WorkingDirectory=/home/%i/OnSiteLogistics
 Environment=PYTHONUNBUFFERED=1
 Environment=ONSITE_CONFIG=/etc/onsitelogistics/config.json
+SupplementaryGroups=input dialout
 ExecStart=/usr/bin/env python3 /home/%i/OnSiteLogistics/scripts/handheld_scan_display.py
 Restart=on-failure
 RestartSec=5
