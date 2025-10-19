@@ -54,7 +54,7 @@ except ImportError:
 # ====== Configurable parameters ======
 # Default HID event node (adjust if your scanner is mapped elsewhere)
 DEVICE_PATH = Path("/dev/input/event0")
-SERIAL_CANDIDATES = [Path("/dev/ttyACM0"), Path("/dev/ttyUSB0")]
+SERIAL_GLOBS = ("ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 IDLE_TIMEOUT_S = 30
 PARTIAL_BATCH_N = 5
@@ -342,21 +342,29 @@ class ScanTransmitter:
                 break
 
 
-def create_scanner():
-    for candidate in SERIAL_CANDIDATES:
-        if not candidate.exists():
-            continue
-        for baud in SERIAL_BAUDS:
-            try:
-                scanner = SerialScanner(candidate, baud)
-                print(f"[INFO] Scanner device: {candidate} (serial {baud}bps)")
-                return scanner
-            except Exception as exc:
-                logging.debug("Serial scanner probe failed (%s @ %s): %s", candidate, baud, exc)
-                continue
+def iter_serial_candidates():
+    dev_root = Path("/dev")
+    for pattern in SERIAL_GLOBS:
+        for path in sorted(dev_root.glob(pattern)):
+            yield path
 
+
+def create_scanner():
+    for attempt in range(3):
+        for candidate in iter_serial_candidates():
+            for baud in SERIAL_BAUDS:
+                try:
+                    scanner = SerialScanner(candidate, baud)
+                    logging.info("Scanner device: %s (serial %sbps)", candidate, baud)
+                    return scanner
+                except Exception as exc:
+                    logging.debug("Serial scanner probe failed (%s @ %s): %s", candidate, baud, exc)
+                    continue
+        time.sleep(0.5)
+
+    logging.info("Serial scanner not detected. Falling back to HID (%s)", DEVICE_PATH)
     scanner = KeyboardScanner(DEVICE_PATH)
-    print(f"[INFO] Scanner device: {scanner.device.path} ({scanner.device.name})")
+    logging.info("Scanner device: %s (%s)", scanner.device.path, scanner.device.name)
     return scanner
 
 
