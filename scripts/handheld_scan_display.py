@@ -351,7 +351,8 @@ def create_scanner():
                 scanner = SerialScanner(candidate, baud)
                 print(f"[INFO] Scanner device: {candidate} (serial {baud}bps)")
                 return scanner
-            except Exception:
+            except Exception as exc:
+                logging.debug("Serial scanner probe failed (%s @ %s): %s", candidate, baud, exc)
                 continue
 
     scanner = KeyboardScanner(DEVICE_PATH)
