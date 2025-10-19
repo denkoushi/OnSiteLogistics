@@ -455,6 +455,78 @@ udevadm info -q property -n /dev/ttyACM0 | grep -E 'ID_MODEL=|ID_VENDOR='
   ```
 - HID デバイスがなくても電子ペーパー表示や API 送信が動作するか、A/B コード読み取りで実地確認する。
 
+### 11.4 今回の課題整理と再発防止策
+
+| 課題 | 症状 | 原因 | 対策 |
+| --- | --- | --- | --- |
+| Pi 上で旧コードが動作 | `SerialScanner` が import できず HID に戻る | Pi に複数クローンが存在し、サービスが古いワークツリーを参照 | `systemctl cat handheld@denkonzero.service` で実行パスを確認し、`~/OnSiteLogistics` に統一。更新時は `cd ~/OnSiteLogistics && git fetch origin && git reset --hard origin/feature/serial-scanner` で同期する。 |
+| `.pyc` キャッシュが残存 | モジュールに `SerialScanner` 属性が現れない | `__pycache__` 内の旧バイトコードが再利用された | 更新後に `find ~/OnSiteLogistics -name '*.pyc' -delete` を実行し、`PYTHONPATH=. python3 - <<'PY' ...` で `has SerialScanner: True` を確認する。 |
+| USB 列挙の遅延 | 起動直後に HID へフォールバック | `/dev/ttyACM0` の生成が遅れ、初回探査が空振り | スクリプトで `SERIAL_PROBE_RETRIES=10` に設定し、systemd override で `/dev/ttyACM0` を待機させる。`journalctl` で `Serial probe attempt` → `/dev/ttyACM0` を確認する。 |
+
+#### 切り分けクイックリファレンス
+- `git status`, `git rev-parse --short HEAD` でリポジトリ同期を確認。
+- `PYTHONPATH=. python3 - <<'PY' ...` で `SerialScanner` 属性が読み込めているかチェック。
+- `lsusb`, `udevadm info -q property -n /dev/ttyACM0`, `journalctl -fu handheld@denkonzero.service` でデバイス列挙状況を追跡。
+
+## 12. 新規ハンディリーダ導入チェックリスト
+
+1. **資料準備**
+   - 付属マニュアルで HID ↔ USB-COM 変更コードを把握し、`Factory Reset`→`USB-COM`→`Save` の順で用意する。
+   - 可能であれば PC で試験し、シリアルモードへ切り替わることを確認。
+
+2. **接続と識別**
+   ```bash
+   lsusb
+   udevadm info -q property -n /dev/ttyACM0
+   ```
+   - Vendor/Product ID を控え、`SERIAL_GLOBS` で検出できるか判断。異なるプレフィックスの場合はスクリプトへ追加する。
+   - 推奨ボーレートが異なる場合は `SERIAL_BAUDS` に追記。
+
+3. **シリアル単体テスト**
+   ```bash
+   sudo apt update
+   sudo apt install python3-serial
+   python3 - <<'PY'
+   import serial
+   port = serial.Serial("/dev/ttyACM0", baudrate=115200, timeout=1)
+   print("Ready. Scan a barcode…")
+   try:
+       while True:
+           line = port.readline().decode(errors="ignore").strip()
+           if line:
+               print("READ:", line)
+   except KeyboardInterrupt:
+       pass
+   finally:
+       port.close()
+   PY
+   ```
+   - `READ:` が出なければモード切替・ボーレートを再確認する。
+
+4. **udev ルール作成**
+   ```bash
+   sudo tee /etc/udev/rules.d/60-handheld-scanner.rules >/dev/null <<EOF
+   SUBSYSTEM=="tty", ATTRS{idVendor}=="<VID>", ATTRS{idProduct}=="<PID>", SYMLINK+="handheld%n", GROUP="dialout", MODE="0660"
+   EOF
+   sudo udevadm control --reload-rules
+   sudo udevadm trigger
+   ```
+   - `<VID>/<PID>` は実測値に置き換える。シンボリックリンクで安定参照が可能になる。
+
+5. **サービス設定の確認**
+   - `config/systemd/handheld@.service` のパス・ユーザーを確認。
+   - 必要に応じて override で `/dev/ttyACM0` の出現待ちを追加。
+
+6. **最終検証**
+   ```bash
+   sudo systemctl restart handheld@denkonzero.service
+   journalctl -fu handheld@denkonzero.service
+   ```
+   - `Serial probe attempt` → `/dev/ttyACM0`（または udev で付けた名前）が表示されることを確認。
+   - A→B スキャンを実施し、電子ペーパー表示・API 着信・キオスクブラウザ反映まで動作させ、リリースログとして記録する。
+
+> **メモ**: 新型番で問題が生じた場合は、`lsusb` 出力、udev 情報、`journalctl` の主要ログを本ドキュメントに追記し、ナレッジを更新する。
+
 ## 8. スキャナ入力検証メモ（進行中）
 - MINJCODE MJ2818A は初期状態で USB HID キーボードとして認識。`/dev/ttyACM*` や `/dev/ttyUSB*` は未作成。
 - `evtest` を導入済み。次は `sudo evtest` でデバイスを選び、バーコード読取時のイベントを確認する。
