@@ -386,8 +386,8 @@ if __name__ == "__main__":
 
 ### 11.2 Raspberry Pi 側での確認
 ```bash
-# 1) バスに認識されているか (Vendor/Product: 34eb:1502)
-lsusb | grep -i 34eb
+# 1) バスに認識されているか (Vendor/Product: 152a:880f)
+lsusb | grep -i 152a
 
 # 2) カーネルメッセージに ttyACM が作られているか
 dmesg | tail -n 20
@@ -426,10 +426,10 @@ udevadm info -q property -n /dev/ttyACM0 | grep -E 'ID_MODEL=|ID_VENDOR='
 - 恒久的にデバイス名を固定したい場合は `/etc/udev/rules.d/90-minjcode.rules` を作成して再起動する:
   ```bash
   sudo tee /etc/udev/rules.d/90-minjcode.rules >/dev/null <<'EOF'
-  SUBSYSTEM=="tty", ATTRS{idVendor}=="34eb", ATTRS{idProduct}=="1502", SYMLINK+="minjcode%n"
+  SUBSYSTEM=="tty", ATTRS{idVendor}=="152a", ATTRS{idProduct}=="880f", SYMLINK+="minjcode%n"
   EOF
   sudo udevadm control --reload
-  sudo udevadm trigger --attr-match=idVendor=34eb --attr-match=idProduct=1502
+  sudo udevadm trigger --attr-match=idVendor=152a --attr-match=idProduct=880f
   ```
   以後は `/dev/minjcode0` を参照すればスキャナにアクセスできる。
 
