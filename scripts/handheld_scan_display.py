@@ -54,6 +54,8 @@ except ImportError:
 # ====== Configurable parameters ======
 # Default HID event node (adjust if your scanner is mapped elsewhere)
 DEVICE_PATH = Path("/dev/input/event0")
+SERIAL_CANDIDATES = [Path("/dev/ttyACM0"), Path("/dev/ttyUSB0")]
+SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 IDLE_TIMEOUT_S = 30
 PARTIAL_BATCH_N = 5
 CANCEL_CODES = {"CANCEL", "RESET"}
@@ -172,6 +174,40 @@ class KeyboardScanner:
             # e.g. KEY_A, KEY_Z
             return code[-1].lower()
         return None
+
+
+class SerialScanner:
+    """Read barcode strings via USB CDC (virtual serial) devices."""
+
+    def __init__(self, device_path: Path, baudrate: int):
+        try:
+            import serial
+        except ImportError as exc:
+            raise RuntimeError(
+                "pyserial is required to use USB-Serial scanners. "
+                "Install it with 'sudo apt install python3-serial' or 'pip install pyserial'."
+            ) from exc
+
+        import serial  # type: ignore
+
+        self._device_path = device_path
+        self._baudrate = baudrate
+        self._serial = serial.Serial(str(device_path), baudrate=baudrate, timeout=0.1)
+
+    def read_code(self, timeout: float = 0.1) -> Optional[str]:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            line = self._serial.readline().decode(errors="ignore").strip()
+            if line:
+                return line
+            time.sleep(0.01)
+        return None
+
+    def close(self) -> None:
+        try:
+            self._serial.close()
+        except Exception:  # pragma: no cover - best effort cleanup
+            pass
 
 
 class EPaperUI:
@@ -306,6 +342,23 @@ class ScanTransmitter:
                 break
 
 
+def create_scanner():
+    for candidate in SERIAL_CANDIDATES:
+        if not candidate.exists():
+            continue
+        for baud in SERIAL_BAUDS:
+            try:
+                scanner = SerialScanner(candidate, baud)
+                print(f"[INFO] Scanner device: {candidate} (serial {baud}bps)")
+                return scanner
+            except Exception:
+                continue
+
+    scanner = KeyboardScanner(DEVICE_PATH)
+    print(f"[INFO] Scanner device: {scanner.device.path} ({scanner.device.name})")
+    return scanner
+
+
 def load_config() -> dict:
     for candidate in CONFIG_SEARCH_PATHS:
         if candidate and Path(candidate).expanduser().is_file():
@@ -323,9 +376,8 @@ def main() -> None:
     )
     config = load_config()
     transmitter = ScanTransmitter(config)
-    scanner = KeyboardScanner(DEVICE_PATH)
+    scanner = create_scanner()
     ui = EPaperUI()
-    print(f"[INFO] Scanner device: {scanner.device.path} ({scanner.device.name})")
 
     state = "WAIT_A"
     code_a: Optional[str] = None
@@ -395,7 +447,11 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\n[INFO] Stopped by user.")
     finally:
-        scanner.close()
+        if scanner:
+            try:
+                scanner.close()
+            except AttributeError:
+                pass
         ui.sleep()
         transmitter.conn.close()
 
