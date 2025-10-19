@@ -52,7 +52,8 @@ except ImportError:
             raise
 
 # ====== Configurable parameters ======
-DEVICE_PATH = Path("/dev/input/event2")  # Update if the scanner is mapped elsewhere
+# Default HID event node (adjust if your scanner is mapped elsewhere)
+DEVICE_PATH = Path("/dev/input/event0")
 IDLE_TIMEOUT_S = 30
 PARTIAL_BATCH_N = 5
 CANCEL_CODES = {"CANCEL", "RESET"}
