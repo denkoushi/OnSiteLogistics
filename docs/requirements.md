@@ -56,11 +56,11 @@
 - **Step 1（完了）**: 電子ペーパー (2.13″ V4) を Pi Zero 2 W から駆動し、Waveshare テストコードで表示確認する。`docs/handheld-reader.md` のセットアップログ 2025-02-15 を参照。
 - **Step 2（完了）**: ハンディスキャナ単体の入力確認（CDC-ACM 優先、HID でも動作させる）。`scan_test.py` で HID 入力を文字列化済み。
 - **Step 3（完了）**: スキャナ入力と電子ペーパー表示を統合し、A→B→完了フローをローカル完結させる。`scripts/handheld_scan_display.py` に状態機械を実装し、`Status: DONE` 表示まで確認済み。
-- **Step 4（完了）**: サーバー通信（HTTP POST）とローカル再送キューを実装。`scripts/handheld_scan_display.py` が `/api/v1/scans` へ送信し、通信断時は `~/.onsitelogistics/scan_queue.db` で再送管理する。ウィンドウA（tool-management-system02 `feature/scan-intake`）側で `part_locations` テーブル upsert と `Socket.IO` 配信まで動作確認済み。
-- **Step 5（未着手）**: サイネージ表示／ダッシュボードの仕様策定と実装。
+- **Step 4（完了）**: サーバー通信（HTTP POST）とローカル再送キューを実装。`scripts/handheld_scan_display.py` が `/api/v1/scans` へ送信し、通信断時は `~/.onsitelogistics/scan_queue.db` で再送管理する。ウィンドウA（tool-management-system02 `feature/scan-intake`）側で `part_locations` テーブル upsert と `Socket.IO` 配信の自動更新まで動作確認済み。
+- **Step 5（進行中）**: サイネージ表示／ダッシュボードの仕様策定と実装。WindowAB 右ペインへの所在一覧タブ導入を完了し、WindowC 連携方式を検討中。
 
 ## 9. 未決・検討事項
-- サーバー側の API 仕様、データモデル、サイネージ表示方法（表示デバイス・UI）。
+- サイネージ表示方法（表示デバイス・UI）と WindowC 連携方式（Socket.IO / REST / 共有ファイル）。
 - バーコード体系の詳細（部品番号とオーダー番号のフォーマット、棚バーコードの規模）。
 - オフライン時の運用ルール（再送に失敗した場合の現場フロー）。
 - バッテリー交換サイクルや充電ステーションの運用設計。
@@ -93,7 +93,10 @@
     }
     ```
     - `accepted=false` や 4xx/5xx 時は、Pi 側でローカルキューに残して再送。
-- **再送方針**: Pi 側で SQLite 等に保存し、成功応答を得るまで指数バックオフで再送。一定回数失敗で Status 表示に「QUEUED/ERROR」を掲示して現場通知。
+- **サーバー挙動（実装済み）**:
+  - `part_locations` テーブルへの upsert、および `Socket.IO` の `part_location_updated` ブロードキャストで所在一覧をリアルタイム更新。
+  - REST フォールバックとして `/api/part_locations?limit=200` を提供。UI では自動更新に失敗した際 20 秒間隔で再取得する。
+- **再送方針**: Pi 側で SQLite に保存し、成功応答を得るまで指数バックオフで再送。一定回数失敗で Status 表示に「QUEUED/ERROR」を掲示して現場通知。
 - **セキュリティ / ネットワーク**: 工場内ローカル LAN (WPA2) での運用を前提。API トークンは `/etc/onsitelogistics/credentials.json` などに保存し、Git 管理対象外。HTTPS 利用可否はウィンドウAの環境に依存（可能であればリバースプロキシ経由で TLS 終端）。
 - **ログ共有**: サーバーからの応答内容は `handheld_scan_display.py` 側で INFO ログに残し、必要に応じて `docs/handheld-reader.md` に運用手順を追記する。
 - **既存インフラとの整合**: ウィンドウA は Flask ベースの 3 ペイン UI を持ち、Docker Compose 上で PostgreSQL を含むサービス群を稼働させている。今回のスキャン記録もその構成を活用し、PostgreSQL に所在履歴を追記するテーブルや、既存 UI への表示追加を想定する（リポジトリ改修時は必ず新しいブランチで作業）。
