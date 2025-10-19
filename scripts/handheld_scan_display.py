@@ -54,7 +54,7 @@ except ImportError:
 # ====== Configurable parameters ======
 # Default HID event node (adjust if your scanner is mapped elsewhere)
 DEVICE_PATH = Path("/dev/input/event0")
-SERIAL_GLOBS = ("ttyACM*", "ttyUSB*")
+SERIAL_GLOBS = ("minjcode*", "ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
 IDLE_TIMEOUT_S = 30
 PARTIAL_BATCH_N = 5
