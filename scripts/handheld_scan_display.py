@@ -56,6 +56,8 @@ except ImportError:
 DEVICE_PATH = Path("/dev/input/event0")
 SERIAL_GLOBS = ("minjcode*", "ttyACM*", "ttyUSB*")
 SERIAL_BAUDS = (115200, 57600, 38400, 9600)
+SERIAL_PROBE_RETRIES = 10
+SERIAL_PROBE_DELAY_S = 1.0
 IDLE_TIMEOUT_S = 30
 PARTIAL_BATCH_N = 5
 CANCEL_CODES = {"CANCEL", "RESET"}
@@ -350,7 +352,10 @@ def iter_serial_candidates():
 
 
 def create_scanner():
-    for attempt in range(3):
+    for attempt in range(SERIAL_PROBE_RETRIES):
+        logging.info(
+            "Serial probe attempt %d/%d", attempt + 1, SERIAL_PROBE_RETRIES
+        )
         for candidate in iter_serial_candidates():
             for baud in SERIAL_BAUDS:
                 try:
@@ -361,7 +366,13 @@ def create_scanner():
                 except Exception as exc:
                     logging.warning("Serial scanner probe failed (%s @ %s): %s", candidate, baud, exc)
                     continue
-        time.sleep(0.5)
+        if attempt < SERIAL_PROBE_RETRIES - 1:
+            logging.info(
+                "Serial scanner not detected on attempt %d. Retrying after %.1fs.",
+                attempt + 1,
+                SERIAL_PROBE_DELAY_S,
+            )
+            time.sleep(SERIAL_PROBE_DELAY_S)
 
     logging.info("Serial scanner not detected after retries. Falling back to HID (%s)", DEVICE_PATH)
     scanner = KeyboardScanner(DEVICE_PATH)

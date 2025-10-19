@@ -437,6 +437,22 @@ udevadm info -q property -n /dev/ttyACM0 | grep -E 'ID_MODEL=|ID_VENDOR='
 - `denkonzero` ユーザーが `dialout` グループに入っていることを再確認する（`id denkonzero`）。未加入なら `sudo usermod -aG dialout denkonzero` → 再ログイン。
 - `journalctl -u handheld@denkonzero.service -f` でログを追尾しながら `sudo systemctl restart handheld@denkonzero.service` を実行し、起動ログに  
   `Scanner device: /dev/ttyACM0 (serial 115200)`（または `/dev/minjcode0`）が出力されることを確認する。
+- ブート直後に HID にフォールバックする場合は `/etc/systemd/system/handheld@.service.d/override.conf` を作成し、シリアルデバイスの出現を待つ設定を追加する。
+  ```bash
+  sudo mkdir -p /etc/systemd/system/handheld@.service.d
+  sudo tee /etc/systemd/system/handheld@.service.d/override.conf >/dev/null <<'EOF'
+  [Unit]
+  After=dev-ttyACM0.device
+  Wants=dev-ttyACM0.device
+
+  [Service]
+  ExecStartPre=/bin/sh -c 'for i in $(seq 1 10); do [ -e /dev/minjcode0 ] || [ -e /dev/ttyACM0 ] && exit 0; sleep 1; done; echo "no serial device"; exit 1'
+  Restart=always
+  RestartSec=2
+  EOF
+  sudo systemctl daemon-reload
+  sudo systemctl restart handheld@denkonzero.service
+  ```
 - HID デバイスがなくても電子ペーパー表示や API 送信が動作するか、A/B コード読み取りで実地確認する。
 
 ## 8. スキャナ入力検証メモ（進行中）
