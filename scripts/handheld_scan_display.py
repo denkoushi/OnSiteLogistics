@@ -358,11 +358,11 @@ def create_scanner():
                     logging.info("Scanner device: %s (serial %sbps)", candidate, baud)
                     return scanner
                 except Exception as exc:
-                    logging.debug("Serial scanner probe failed (%s @ %s): %s", candidate, baud, exc)
+                    logging.warning("Serial scanner probe failed (%s @ %s): %s", candidate, baud, exc)
                     continue
         time.sleep(0.5)
 
-    logging.info("Serial scanner not detected. Falling back to HID (%s)", DEVICE_PATH)
+    logging.info("Serial scanner not detected after retries. Falling back to HID (%s)", DEVICE_PATH)
     scanner = KeyboardScanner(DEVICE_PATH)
     logging.info("Scanner device: %s (%s)", scanner.device.path, scanner.device.name)
     return scanner
