@@ -378,6 +378,67 @@ if __name__ == "__main__":
 
 > **補足**: `ExecStart` は `python3` を直接呼び出す。仮想環境を使う場合は `ExecStart=/home/<ユーザー>/OnSiteLogistics/.venv/bin/python ...` などに調整し、環境変数 `PATH` もサービスドロップインで上書きする。
 
+## 11. MJ2818A を USB シリアル (CDC-ACM) で使う
+
+### 11.1 スキャナ側で USB-COM モードへ切替
+- 付属マニュアルの「インターフェース設定」章にある `USB-COM Port`（または同等表記）バーコードをスキャンして CDC-ACM に切り替える。初期化が必要な場合は `Restore Factory Defaults`→`USB-COM Port`→`Save` の順でスキャンする。  
+- 設定後にトリガーを押してもキー入力が入らず、起動音だけ鳴る状態であれば HID から脱却できている可能性が高い。再度 USB を抜き差ししてから Pi 側で確認する。
+
+### 11.2 Raspberry Pi 側での確認
+```bash
+# 1) バスに認識されているか (Vendor/Product: 34eb:1502)
+lsusb | grep -i 34eb
+
+# 2) カーネルメッセージに ttyACM が作られているか
+dmesg | tail -n 20
+
+# 3) デバイスノード確認
+ls -l /dev/ttyACM*
+
+# 4) UDEV から製品名を確認（ID 文字列に MINJCODE / EY-... が含まれる想定）
+udevadm info -q property -n /dev/ttyACM0 | grep -E 'ID_MODEL=|ID_VENDOR='
+```
+
+- `python3-serial` が未導入だと `handheld_scan_display.py` のシリアル探査に失敗するため、以下を 1 度実行する:
+  ```bash
+  sudo apt update
+  sudo apt install python3-serial
+  ```
+- シリアル受信を単体テストする:
+  ```bash
+  python3 - <<'PY'
+  import serial
+  port = serial.Serial("/dev/ttyACM0", baudrate=115200, timeout=1)
+  print("Ready. Scan something...")
+  try:
+      while True:
+          line = port.readline().decode(errors="ignore").strip()
+          if line:
+              print("READ:", line)
+  except KeyboardInterrupt:
+      pass
+  finally:
+      port.close()
+  PY
+  ```
+  スキャンした内容が `READ: <バーコード>` と表示されれば CDC-ACM で受信できている。
+
+- 恒久的にデバイス名を固定したい場合は `/etc/udev/rules.d/90-minjcode.rules` を作成して再起動する:
+  ```bash
+  sudo tee /etc/udev/rules.d/90-minjcode.rules >/dev/null <<'EOF'
+  SUBSYSTEM=="tty", ATTRS{idVendor}=="34eb", ATTRS{idProduct}=="1502", SYMLINK+="minjcode%n"
+  EOF
+  sudo udevadm control --reload
+  sudo udevadm trigger --attr-match=idVendor=34eb --attr-match=idProduct=1502
+  ```
+  以後は `/dev/minjcode0` を参照すればスキャナにアクセスできる。
+
+### 11.3 サービスへの反映
+- `denkonzero` ユーザーが `dialout` グループに入っていることを再確認する（`id denkonzero`）。未加入なら `sudo usermod -aG dialout denkonzero` → 再ログイン。
+- `journalctl -u handheld@denkonzero.service -f` でログを追尾しながら `sudo systemctl restart handheld@denkonzero.service` を実行し、起動ログに  
+  `Scanner device: /dev/ttyACM0 (serial 115200)`（または `/dev/minjcode0`）が出力されることを確認する。
+- HID デバイスがなくても電子ペーパー表示や API 送信が動作するか、A/B コード読み取りで実地確認する。
+
 ## 8. スキャナ入力検証メモ（進行中）
 - MINJCODE MJ2818A は初期状態で USB HID キーボードとして認識。`/dev/ttyACM*` や `/dev/ttyUSB*` は未作成。
 - `evtest` を導入済み。次は `sudo evtest` でデバイスを選び、バーコード読取時のイベントを確認する。
