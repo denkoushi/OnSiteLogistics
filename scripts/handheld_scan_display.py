@@ -354,6 +354,7 @@ def create_scanner():
         for candidate in iter_serial_candidates():
             for baud in SERIAL_BAUDS:
                 try:
+                    logging.info("Probing serial scanner candidate %s @ %sbps", candidate, baud)
                     scanner = SerialScanner(candidate, baud)
                     logging.info("Scanner device: %s (serial %sbps)", candidate, baud)
                     return scanner
