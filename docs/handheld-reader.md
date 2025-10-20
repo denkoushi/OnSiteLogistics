@@ -528,6 +528,18 @@ udevadm info -q property -n /dev/ttyACM0 | grep -E 'ID_MODEL=|ID_VENDOR='
 
 > **メモ**: 新型番で問題が生じた場合は、`lsusb` 出力、udev 情報、`journalctl` の主要ログを本ドキュメントに追記し、ナレッジを更新する。
 
+### 11.5 複数 Raspberry Pi（ハンディ端末）の運用ガイド
+- **`device_id` と API トークンを端末ごとにユニーク化**  
+  `/etc/onsitelogistics/config.json` の `device_id` は `HANDHELD-01`, `HANDHELD-02` のように Pi ごとに指定し、tool-management-system02（Window A）で `scripts/manage_api_token.py issue --station-id HANDHELD-01 --reveal` のように端末単位でトークンを発行する。
+- **シリアル設定は各端末で `setup_serial_env.sh` を実行**  
+  `sudo ./scripts/setup_serial_env.sh <ユーザー名>` を台数分実行し、udev ルール／systemd override／サービス再起動を自動適用する。ジョーナルに `Scanner device: /dev/minjcode0 ...` が出ることを確認する。
+- **ワークツリーの一元化**  
+  `systemctl cat handheld@<user>.service` で確認できる `WorkingDirectory`（例: `/home/<user>/OnSiteLogistics`）だけを運用対象とし、他の場所に同名リポジトリを置かない。更新時は必ずそのディレクトリで `git fetch origin && git reset --hard origin/feature/serial-scanner` を実行する。
+- **ログ・キューは端末ごとに独立**  
+  SQLite キュー（`~/.onsitelogistics/scan_queue.db`）とログはユーザー単位で分離される。管理時は `journalctl -u handheld@<user>.service` で対象端末の状態を確認する。
+- **サーバー側モニタリング**  
+  Window A では `part_locations` テーブルに `device_id` 列が格納されるため、端末ごとの稼働状況や未送信データを監視できる。複数台を導入する場合は、閲覧UIやダッシュボードで端末別フィルタを準備する。
+
 ## 8. スキャナ入力検証メモ（進行中）
 - MINJCODE MJ2818A は初期状態で USB HID キーボードとして認識。`/dev/ttyACM*` や `/dev/ttyUSB*` は未作成。
 - `evtest` を導入済み。次は `sudo evtest` でデバイスを選び、バーコード読取時のイベントを確認する。
