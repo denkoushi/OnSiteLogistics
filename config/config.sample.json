@@ -1,7 +1,10 @@
 {
-  "api_url": "http://toolmgmt.local/api/v1/scans",
+  "primary_endpoint": "http://raspi-server.local:8501/api/v1/scans",
+  "mirror_endpoint": "http://raspi-server.local:8501/api/v1/scans",
+  "mirror_mode": false,
   "api_token": "replace-with-token",
   "device_id": "pi-zero2w-01",
   "queue_db_path": "~/.onsitelogistics/scan_queue.db",
-  "timeout_seconds": 3
+  "timeout_seconds": 3,
+  "mirror_timeout_seconds": 3
 }

@@ -271,10 +271,15 @@ def format_line(prefix: str, code: str, done: bool, max_len: int = 24) -> str:
 
 class ScanTransmitter:
     def __init__(self, config: dict):
-        self.api_url = config["api_url"]
+        self.primary_url = config.get("primary_endpoint") or config.get("api_url")
+        if not self.primary_url:
+            raise ValueError("primary_endpoint または api_url を設定してください。")
+        self.mirror_url = config.get("mirror_endpoint")
+        self.mirror_mode = bool(config.get("mirror_mode", False))
         self.api_token = config["api_token"]
         self.device_id = config["device_id"]
         self.timeout = config.get("timeout_seconds", DEFAULT_TIMEOUT)
+        self.mirror_timeout = config.get("mirror_timeout_seconds", self.timeout)
         queue_path = Path(config.get("queue_db_path", "~/.onsitelogistics/scan_queue.db")).expanduser()
         queue_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(queue_path)
@@ -284,11 +289,19 @@ class ScanTransmitter:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 payload TEXT NOT NULL,
                 retries INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                target TEXT NOT NULL DEFAULT 'primary'
             )
             """
         )
         self.conn.commit()
+        self._ensure_queue_schema()
+
+    def _ensure_queue_schema(self) -> None:
+        columns = {row[1] for row in self.conn.execute("PRAGMA table_info(scan_queue)")}
+        if "target" not in columns:
+            self.conn.execute("ALTER TABLE scan_queue ADD COLUMN target TEXT NOT NULL DEFAULT 'primary'")
+            self.conn.commit()
 
     def _request_headers(self) -> dict:
         return {
@@ -296,43 +309,65 @@ class ScanTransmitter:
             "Content-Type": "application/json",
         }
 
-    def _post(self, payload: dict) -> bool:
+    def _post(self, url: str, payload: dict, target: str, timeout: float) -> bool:
         try:
-            logging.info("Posting scan: %s", payload.get("scan_id"))
+            logging.info("Posting scan %s to %s", payload.get("scan_id"), target)
             response = requests.post(
-                self.api_url,
+                url,
                 json=payload,
                 headers=self._request_headers(),
-                timeout=self.timeout,
+                timeout=timeout,
             )
             response.raise_for_status()
-            logging.info("Server accepted scan %s", payload.get("scan_id"))
+            logging.info("Server accepted scan %s (%s)", payload.get("scan_id"), target)
             return True
         except requests.RequestException as exc:
-            logging.warning("Failed to post scan %s: %s", payload.get("scan_id"), exc)
+            logging.warning("Failed to post scan %s (%s): %s", payload.get("scan_id"), target, exc)
             return False
 
-    def enqueue(self, payload: dict, retries: int = 0) -> None:
-        logging.info("Queueing scan %s for retry", payload.get("scan_id"))
+    def enqueue(self, payload: dict, target: str, retries: int = 0) -> None:
+        logging.info("Queueing scan %s for retry (%s)", payload.get("scan_id"), target)
         self.conn.execute(
-            "INSERT INTO scan_queue (payload, retries, created_at) VALUES (?, ?, ?)",
-            (json.dumps(payload), retries, time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
+            "INSERT INTO scan_queue (payload, retries, created_at, target) VALUES (?, ?, ?, ?)",
+            (
+                json.dumps(payload),
+                retries,
+                time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                target,
+            ),
         )
         self.conn.commit()
 
     def send_or_queue(self, payload: dict) -> None:
-        if not self._post(payload):
-            self.enqueue(payload, payload.get("retries", 0))
+        targets = [("primary", self.primary_url, self.timeout)]
+        if self.mirror_url and self.mirror_mode:
+            targets.append(("mirror", self.mirror_url, self.mirror_timeout))
+
+        for target_name, url, timeout in targets:
+            if url is None:
+                continue
+            if not self._post(url, payload, target_name, timeout):
+                self.enqueue(payload, target_name, payload.get("retries", 0))
 
     def drain(self) -> None:
         cursor = self.conn.execute(
-            "SELECT id, payload, retries FROM scan_queue ORDER BY id ASC LIMIT 20"
+            "SELECT id, payload, retries, target FROM scan_queue ORDER BY id ASC LIMIT 20"
         )
         rows = cursor.fetchall()
-        for row_id, payload_json, retries in rows:
+        for row_id, payload_json, retries, target in rows:
             payload = json.loads(payload_json)
             payload["retries"] = retries + 1
-            if self._post(payload):
+            url, timeout = self._resolve_target(target)
+            if url is None:
+                logging.warning(
+                    "Dropping queued scan %s because target '%s' is not configured",
+                    payload.get("scan_id"),
+                    target,
+                )
+                self.conn.execute("DELETE FROM scan_queue WHERE id=?", (row_id,))
+                self.conn.commit()
+                continue
+            if self._post(url, payload, target, timeout):
                 self.conn.execute("DELETE FROM scan_queue WHERE id=?", (row_id,))
                 self.conn.commit()
             else:
@@ -342,6 +377,14 @@ class ScanTransmitter:
                 )
                 self.conn.commit()
                 break
+
+    def _resolve_target(self, target: str) -> tuple[Optional[str], float]:
+        if target == "primary":
+            return self.primary_url, self.timeout
+        if target == "mirror" and self.mirror_url:
+            return self.mirror_url, self.mirror_timeout
+        logging.warning("Unknown queue target '%s'", target)
+        return None, self.timeout
 
 
 def iter_serial_candidates():

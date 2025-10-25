@@ -295,11 +295,11 @@ if __name__ == "__main__":
   ```bash
   sudo mkdir -p /etc/onsitelogistics
   sudo cp ~/OnSiteLogistics/config/config.sample.json /etc/onsitelogistics/config.json
-  sudo nano /etc/onsitelogistics/config.json   # api_url/api_token/device_id を編集
+  sudo nano /etc/onsitelogistics/config.json   # primary_endpoint / api_token / device_id / mirror_mode などを編集
   ```
 - 手動でキューを確認する（必要に応じて）:
   ```bash
-  sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT id, payload, retries FROM scan_queue'
+  sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT id, target, retries, payload FROM scan_queue'
   ```
 - サーバー疎通テスト（`curl`）:
   ```bash
@@ -338,7 +338,7 @@ if __name__ == "__main__":
 
 ### 9.6 ネットワーク移行時の注意
 - Pi Zero 2 W は 2.4 GHz のみ対応。工場内 AP のバンドや電波減衰を事前調査し、必要に応じてアクセスポイントを追加する。  
-- サーバーは固定 IP または DHCP 予約を設定し、ハンディ側 `api_url` を本番アドレスへ更新。UFW 設定や TLS 化（必要に応じてリバースプロキシ）を整備する。  
+- サーバーは固定 IP または DHCP 予約を設定し、ハンディ側 `primary_endpoint`（必要に応じて `mirror_endpoint`）を本番アドレスへ更新。UFW 設定や TLS 化（必要に応じてリバースプロキシ）を整備する。  
 - 移行前にネットワーク断→再接続時の再送キュー、Socket.IO 再接続が正常に動作するか現地で検証する。
 
 > **筐体**: スキャナ／電子ペーパー／モバイルバッテリーを一体化する 3D プリントフレームを自作予定。筐体設計はユーザー側で検討し、配線・放熱・重量バランスに留意する。
@@ -551,4 +551,4 @@ udevadm info -q property -n /dev/ttyACM0 | grep -E 'ID_MODEL=|ID_VENDOR='
 - 使用中スキャナ: Eyoyo MJ2818A（Amazon ASIN: `B0CSDKSBC2`）。現状は USB HID 動作のみ確認済みで、公式サイト（https://jp.eyoyousa.com/ および英語版）のダウンロード資料にも CDC-ACM / USB-COM 切替コードは見つからずシリアル対応は未確認。必要であれば付属マニュアルの再確認か Eyoyo サポート問い合わせが必要。
 - 長いコードは 24 文字で省略表示されるように調整（例: `https://...`）。
 - 空文字（スキャナから Enter のみが送られた場合）は無視するログを追加し、誤検知で状態が進まないようにした。
-- `handheld_scan_display.py` にサーバー送信機能と SQLite キュー（`~/.onsitelogistics/scan_queue.db`）を実装済み。設定ファイルは `/etc/onsitelogistics/config.json` などに配置し、`api_url` / `api_token` / `device_id` を指定する。送信失敗時はログに WARN を出し、キューへ保存後に定期的に再送する仕様。
+- `handheld_scan_display.py` にサーバー送信機能と SQLite キュー（`~/.onsitelogistics/scan_queue.db`）を実装済み。設定ファイルは `/etc/onsitelogistics/config.json` などに配置し、`primary_endpoint` / `mirror_endpoint` / `mirror_mode` / `api_token` / `device_id` を指定する。送信失敗時はログに WARN を出し、キューへ保存後に定期的に再送する仕様。
