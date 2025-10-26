@@ -297,6 +297,15 @@ if __name__ == "__main__":
   sudo cp ~/OnSiteLogistics/config/config.sample.json /etc/onsitelogistics/config.json
   sudo nano /etc/onsitelogistics/config.json   # api_url などを本番値（例: http://raspi-server.local:8501/api/v1/scans）へ更新
   ```
+  もしくはスクリプトで自動セットアップ:
+  ```bash
+  cd ~/OnSiteLogistics
+  sudo ./scripts/install_client_config.sh \
+    --api-url http://raspi-server.local:8501/api/v1/scans \
+    --api-token <token> \
+    --device-id HANDHELD-01
+  ```
+  設定後は `sudo systemctl restart handheld@<ユーザー>.service` を実行し、最新設定を反映させる。
 - 手動でキューを確認する（必要に応じて）:
   ```bash
   sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT id, target, retries, payload FROM scan_queue'
@@ -309,6 +318,7 @@ if __name__ == "__main__":
     -H 'Authorization: Bearer <token>' \
     -d '{"part_code":"PING","location_code":"TEST","scanned_at":"2025-01-01T00:00:00Z"}'
   ```
+  上記テストで `201` が返り、ハンディ側ログ (`journalctl -u handheld@<ユーザー>.service -n 20`) に送信成功が記録されていれば切替完了。
 
 ## 9. ハードウェア設計の詳細メモ
 

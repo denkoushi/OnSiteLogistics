@@ -19,4 +19,13 @@
 
 ## 設定ファイル
 - サンプル: `config/config.sample.json`
-- 実運用時は `/etc/onsitelogistics/config.json` などにコピーし、API エンドポイント・トークン・デバイス ID を設定してください。
+- 実運用時は `/etc/onsitelogistics/config.json` に配置します。
+- 自動セットアップ例:
+  ```bash
+  cd ~/OnSiteLogistics
+  sudo ./scripts/install_client_config.sh \
+    --api-url http://raspi-server.local:8501/api/v1/scans \
+    --api-token <token> \
+    --device-id HANDHELD-01
+  ```
+- 設定後は `sudo systemctl restart handheld@<user>.service` でサービスを再起動し、送信が成功することを確認してください。
