@@ -39,3 +39,9 @@
 pip install -r requirements-dev.txt
 pytest
 ```
+
+または Makefile を利用する場合:
+
+```bash
+make test
+```
