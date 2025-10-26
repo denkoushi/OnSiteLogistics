@@ -295,7 +295,7 @@ if __name__ == "__main__":
   ```bash
   sudo mkdir -p /etc/onsitelogistics
   sudo cp ~/OnSiteLogistics/config/config.sample.json /etc/onsitelogistics/config.json
-  sudo nano /etc/onsitelogistics/config.json   # api_url/api_token/device_id/log_dir を編集
+  sudo nano /etc/onsitelogistics/config.json   # api_url などを本番値（例: http://raspi-server.local:8501/api/v1/scans）へ更新
   ```
 - 手動でキューを確認する（必要に応じて）:
   ```bash
