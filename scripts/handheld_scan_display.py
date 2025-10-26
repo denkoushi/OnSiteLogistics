@@ -22,6 +22,7 @@ from typing import Optional
 import requests
 from evdev import InputDevice, categorize, ecodes
 from PIL import Image, ImageDraw, ImageFont
+from logging.handlers import RotatingFileHandler
 
 try:
     from waveshare_epd import epd2in13_V4  # legacy module name
@@ -380,6 +381,27 @@ def create_scanner():
     return scanner
 
 
+def configure_logging(config: dict) -> None:
+    log_dir = Path(config.get("log_dir", "~/.onsitelogistics/logs")).expanduser()
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / "handheld.log"
+
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+
+    for handler in list(root_logger.handlers):
+        root_logger.removeHandler(handler)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+
+    file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=3)
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+
+
 def load_config() -> dict:
     for candidate in CONFIG_SEARCH_PATHS:
         if candidate and Path(candidate).expanduser().is_file():
@@ -391,11 +413,8 @@ def load_config() -> dict:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
     config = load_config()
+    configure_logging(config)
     transmitter = ScanTransmitter(config)
     scanner = create_scanner()
     ui = EPaperUI()
