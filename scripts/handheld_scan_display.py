@@ -10,6 +10,7 @@ Run on Raspberry Pi Zero 2 W:
     sudo ./handheld_scan_display.py
 """
 
+import argparse
 import json
 import logging
 import os
@@ -325,17 +326,20 @@ class ScanTransmitter:
         if not self._post(payload):
             self.enqueue(payload, payload.get("retries", 0))
 
-    def drain(self) -> None:
+    def drain(self, limit: int = 20) -> bool:
         cursor = self.conn.execute(
-            "SELECT id, payload, retries FROM scan_queue ORDER BY id ASC LIMIT 20"
+            "SELECT id, payload, retries FROM scan_queue ORDER BY id ASC LIMIT ?",
+            (limit,),
         )
         rows = cursor.fetchall()
+        processed = False
         for row_id, payload_json, retries in rows:
             payload = json.loads(payload_json)
             payload["retries"] = retries + 1
             if self._post(payload):
                 self.conn.execute("DELETE FROM scan_queue WHERE id=?", (row_id,))
                 self.conn.commit()
+                processed = True
             else:
                 self.conn.execute(
                     "UPDATE scan_queue SET retries=? WHERE id=?",
@@ -343,6 +347,12 @@ class ScanTransmitter:
                 )
                 self.conn.commit()
                 break
+        return processed
+
+    def queue_size(self) -> int:
+        cursor = self.conn.execute("SELECT COUNT(*) FROM scan_queue")
+        (count,) = cursor.fetchone()
+        return int(count or 0)
 
 
 def iter_serial_candidates():
@@ -402,7 +412,14 @@ def configure_logging(config: dict) -> None:
     root_logger.addHandler(file_handler)
 
 
-def load_config() -> dict:
+def load_config(config_path: Optional[str] = None) -> dict:
+    if config_path:
+        path = Path(config_path).expanduser()
+        if not path.is_file():
+            raise FileNotFoundError(f"Config file not found: {path}")
+        with open(path, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+
     for candidate in CONFIG_SEARCH_PATHS:
         if candidate and Path(candidate).expanduser().is_file():
             with open(Path(candidate).expanduser(), "r", encoding="utf-8") as fh:
@@ -412,10 +429,36 @@ def load_config() -> dict:
     )
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="OnSiteLogistics handheld controller")
+    parser.add_argument(
+        "--config",
+        help="Path to config.json (overrides ONSITE_CONFIG/search order)",
+    )
+    parser.add_argument(
+        "--drain-only",
+        action="store_true",
+        help="Process queued scans then exit",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
-    config = load_config()
+    args = parse_args()
+    config = load_config(args.config)
     configure_logging(config)
     transmitter = ScanTransmitter(config)
+
+    if args.drain_only:
+        logging.info("Drain-only mode: processing queued scans")
+        processed = True
+        while processed:
+            processed = transmitter.drain()
+            if processed and transmitter.queue_size() > 0:
+                time.sleep(0.5)
+        logging.info("Drain-only mode completed. Pending queue size: %s", transmitter.queue_size())
+        return
+
     scanner = create_scanner()
     ui = EPaperUI()
 
