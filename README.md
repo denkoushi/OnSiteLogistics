@@ -29,3 +29,12 @@
     --device-id HANDHELD-01
   ```
 - 設定後は `sudo systemctl restart handheld@<user>.service` でサービスを再起動し、送信が成功することを確認してください。
+
+## テスト
+
+開発環境でサンプル設定の整合性を確認する場合は pytest を利用します。
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
