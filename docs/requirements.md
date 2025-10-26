@@ -117,5 +117,5 @@
 
 ## 11. 現在の進捗メモ（2025-10-26 時点）
 - ハンディリーダは単一送信（`api_url`）で RaspberryPiServer へリクエストする構成を維持。旧サーバーとの並行運用は行わないため、`mirror_mode` 設定は使用しない。
-- 次フェーズでは RaspberryPiServer の API ホスト名・トークンを確定させ、Pi Zero 設定（`/etc/onsitelogistics/config.json`）を本番値へ更新して通し試験に入る。
+- 次フェーズでは RaspberryPiServer の API ホスト名・トークンを確定させ、`scripts/install_client_config.sh` で Pi Zero 設定（`/etc/onsitelogistics/config.json`）を本番値へ更新し、`scripts/check_connection.sh` で疎通確認して通し試験に入る。
 - 日次チェックリストに沿って、Pi Zero 側キューとサーバー側ログを突き合わせる検証手順を整備し、14 日通し試運転の準備を進める。
