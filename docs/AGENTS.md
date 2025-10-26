@@ -38,6 +38,7 @@
 - `README.md`: プロジェクト概要とセットアップ手順。
 - `RUNBOOK.md`: 運用・障害対応手順。
 - `docs/requirements.md`: 要件、優先順位、決定事項の集約。
+- `docs/test-notes/2025-10-26-handheld-send.md`: 最新の送信テスト記録。
 - `docs/security-overview.md` / `docs/security-requirements-response.md`: セキュリティ関連情報（必要になったタイミングで作成）。
 - `CHANGELOG.md`: 適用済みの変更履歴（必要に応じて作成）。
 
