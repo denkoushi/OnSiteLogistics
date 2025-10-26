@@ -306,6 +306,7 @@ if __name__ == "__main__":
     --device-id HANDHELD-01
   ```
   設定後は `sudo systemctl restart handheld@<ユーザー>.service` を実行し、最新設定を反映させる。
+  疎通確認には `sudo ./scripts/check_connection.sh` を利用できる（HTTP ステータス 200/201 を期待）。
 - 手動でキューを確認する（必要に応じて）:
   ```bash
   sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT id, target, retries, payload FROM scan_queue'

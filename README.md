@@ -29,6 +29,7 @@
     --device-id HANDHELD-01
   ```
 - 設定後は `sudo systemctl restart handheld@<user>.service` でサービスを再起動し、送信が成功することを確認してください。
+- 疎通テスト: `sudo ./scripts/check_connection.sh` を実行すると設定済み API へテスト送信し、HTTP ステータスを確認できます。
 
 ## テスト
 
