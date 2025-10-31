@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -98,13 +99,16 @@ def test_main_drain_only(monkeypatch, tmp_path):
     config_path.write_text(json.dumps(config))
 
     transmitter = hsd.ScanTransmitter(config)
-    transmitter.enqueue({
-        "scan_id": "test-scan",
-        "device_id": "dev",
-        "part_code": "PART",
-        "location_code": "RACK",
-        "scanned_at": "2025-01-01T00:00:00Z",
-    })
+    transmitter.enqueue(
+        "http://example.com",
+        {
+            "scan_id": "test-scan",
+            "device_id": "dev",
+            "part_code": "PART",
+            "location_code": "RACK",
+            "scanned_at": "2025-01-01T00:00:00Z",
+        },
+    )
     transmitter.conn.close()
 
     calls = []
@@ -137,3 +141,27 @@ def test_main_drain_only(monkeypatch, tmp_path):
         assert last_transmitter.queue_size() == 0
     finally:
         last_transmitter.conn.close()
+
+
+def test_send_logistics_job_queue(monkeypatch, tmp_path):
+    config = {
+        "api_url": "http://example.com/api/v1/scans",
+        "logistics_api_url": "http://example.com/api/logistics/jobs",
+        "logistics_default_from": "STAGING",
+        "logistics_status": "completed",
+        "api_token": "token",
+        "device_id": "dev",
+        "queue_db_path": str(tmp_path / "queue.db"),
+    }
+    transmitter = hsd.ScanTransmitter(config)
+
+    class DummyResponse:
+        status_code = 500
+
+        def raise_for_status(self):
+            raise requests.HTTPError("server error")
+
+    monkeypatch.setattr(hsd.requests, "post", lambda *args, **kwargs: DummyResponse())
+    transmitter.send_logistics_job("PART-1", "DEST-1")
+    assert transmitter.queue_size() == 1
+    transmitter.conn.close()

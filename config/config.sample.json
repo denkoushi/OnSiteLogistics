@@ -2,6 +2,9 @@
   "api_url": "http://raspi-server.local:8501/api/v1/scans",
   "api_token": "replace-with-token",
   "device_id": "pi-zero2w-01",
+  "logistics_api_url": "http://raspi-server.local:8501/api/logistics/jobs",
+  "logistics_default_from": "STAGING-AREA",
+  "logistics_status": "completed",
   "queue_db_path": "~/.onsitelogistics/scan_queue.db",
   "timeout_seconds": 3,
   "log_dir": "~/.onsitelogistics/logs"

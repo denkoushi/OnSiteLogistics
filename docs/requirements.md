@@ -57,6 +57,7 @@
 - **Step 2（完了）**: ハンディスキャナ単体の入力確認（CDC-ACM 優先、HID でも動作させる）。`scan_test.py` で HID 入力を文字列化済み。
 - **Step 3（完了）**: スキャナ入力と電子ペーパー表示を統合し、A→B→完了フローをローカル完結させる。`scripts/handheld_scan_display.py` に状態機械を実装し、`Status: DONE` 表示まで確認済み。
 - **Step 4（完了）**: サーバー通信（HTTP POST）とローカル再送キューを実装。`scripts/handheld_scan_display.py` が `/api/v1/scans` へ送信し、通信断時は `~/.onsitelogistics/scan_queue.db` で再送管理する。ウィンドウA（tool-management-system02 `feature/scan-intake`）側で `part_locations` テーブル upsert と `Socket.IO` 配信の自動更新まで動作確認済み。
+- **Step 5（進行中）**: RaspberryPiServer の構内物流 API（`/api/logistics/jobs`）へも搬送実績を送信し、右ペインの物流タブと同期できるようにした。キューは `target` 列で送信先を識別し、所在送信と同一テーブルで再送管理する。
 - **Step 5（進行中）**: サイネージ表示／ダッシュボードの仕様策定と実装。WindowAB 右ペインへの所在一覧タブ導入を完了し、WindowC 連携方式を検討中。
 
 ## 9. 未決・検討事項

@@ -308,6 +308,15 @@ if __name__ == "__main__":
   設定後は `sudo systemctl restart handheld@<ユーザー>.service` を実行し、最新設定を反映させる。
   疎通確認には `sudo ./scripts/check_connection.sh --dry-run`（設定確認）および `sudo ./scripts/check_connection.sh`（HTTP 200/201 を期待）を利用できる。
   キューが残っている場合は `sudo ./scripts/handheld_scan_display.py --drain-only` を実行すると、再送処理のみ行って終了する。
+- RaspberryPiServer 側で構内物流タスクを運用する場合は、`config.json` に以下の項目も追記しておく。
+  ```json
+  {
+    "logistics_api_url": "http://raspi-server.local:8501/api/logistics/jobs",
+    "logistics_default_from": "STAGING-AREA",
+    "logistics_status": "completed"
+  }
+  ```
+  これによりハンディ側で A/B コードを確定させたタイミングで `/api/logistics/jobs` への POST を行い、搬送実績を Window A の右ペインに即時反映できる。通信失敗時は所在送信と同じ SQLite キュー（`target` 列に API URL が入る）で再送される。
 - 手動でキューを確認する（必要に応じて）:
   ```bash
   sqlite3 ~/.onsitelogistics/scan_queue.db 'SELECT id, target, retries, payload FROM scan_queue'

@@ -10,6 +10,16 @@ def test_config_sample_has_required_fields():
     with sample_path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
 
-    for key in ("api_url", "api_token", "device_id", "queue_db_path", "timeout_seconds", "log_dir"):
+    for key in (
+        "api_url",
+        "api_token",
+        "device_id",
+        "queue_db_path",
+        "timeout_seconds",
+        "log_dir",
+        "logistics_api_url",
+        "logistics_default_from",
+        "logistics_status",
+    ):
         assert key in data, f"Missing key: {key}"
         assert data[key] != "", f"Empty value for key: {key}"

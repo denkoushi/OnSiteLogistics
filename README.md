@@ -31,6 +31,15 @@
 - 設定後は `sudo systemctl restart handheld@<user>.service` でサービスを再起動し、送信が成功することを確認してください。
 - 疎通テスト: `sudo ./scripts/check_connection.sh --dry-run` で設定内容を確認し、`sudo ./scripts/check_connection.sh` で実際にテスト送信して HTTP ステータスを確認できます。
 - キューの再送: `sudo ./scripts/handheld_scan_display.py --drain-only` を実行するとキューに溜まったスキャンを順次送信し、完了後すぐ終了します。cron/systemd からの定期実行も可能です。
+- RaspberryPiServer の構内物流 API と連携する場合は、以下の項目を追記してください。
+  ```json
+  {
+    "logistics_api_url": "http://raspi-server.local:8501/api/logistics/jobs",
+    "logistics_default_from": "STAGING-AREA",
+    "logistics_status": "completed"
+  }
+  ```
+  ハンディリーダで A/B コードを読み取るたびに、所在更新（`/api/v1/scans`）に加えて搬送完了レコードを `/api/logistics/jobs` へ送信します。通信断時はスキャン送信と同じキューで自動再送されます。
 
 ## テスト
 

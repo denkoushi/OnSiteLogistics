@@ -273,10 +273,14 @@ def format_line(prefix: str, code: str, done: bool, max_len: int = 24) -> str:
 
 class ScanTransmitter:
     def __init__(self, config: dict):
-        self.api_url = config["api_url"]
+        self.scan_api_url = config["api_url"]
         self.api_token = config["api_token"]
         self.device_id = config["device_id"]
         self.timeout = config.get("timeout_seconds", DEFAULT_TIMEOUT)
+        self.logistics_api_url = config.get("logistics_api_url")
+        self.logistics_default_from = config.get("logistics_default_from", "UNKNOWN")
+        self.logistics_status = config.get("logistics_status", "completed")
+        self.logistics_enabled = bool(self.logistics_api_url)
         queue_path = Path(config.get("queue_db_path", "~/.onsitelogistics/scan_queue.db")).expanduser()
         queue_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(queue_path)
@@ -284,6 +288,7 @@ class ScanTransmitter:
             """
             CREATE TABLE IF NOT EXISTS scan_queue (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                target TEXT NOT NULL,
                 payload TEXT NOT NULL,
                 retries INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
@@ -291,6 +296,15 @@ class ScanTransmitter:
             """
         )
         self.conn.commit()
+        self._migrate_queue_schema()
+
+    def _migrate_queue_schema(self) -> None:
+        cursor = self.conn.execute("PRAGMA table_info(scan_queue)")
+        columns = {row[1] for row in cursor.fetchall()}
+        if "target" not in columns:
+            self.conn.execute("ALTER TABLE scan_queue ADD COLUMN target TEXT")
+            self.conn.execute("UPDATE scan_queue SET target=?", (self.scan_api_url,))
+            self.conn.commit()
 
     def _request_headers(self) -> dict:
         return {
@@ -298,45 +312,59 @@ class ScanTransmitter:
             "Content-Type": "application/json",
         }
 
-    def _post(self, payload: dict) -> bool:
+    def _post(self, target_url: str, payload: dict) -> bool:
         try:
-            logging.info("Posting scan: %s", payload.get("scan_id"))
+            logging.info("Posting to %s: %s", target_url, payload.get("scan_id") or payload.get("job_id"))
             response = requests.post(
-                self.api_url,
+                target_url,
                 json=payload,
                 headers=self._request_headers(),
                 timeout=self.timeout,
             )
             response.raise_for_status()
-            logging.info("Server accepted scan %s", payload.get("scan_id"))
+            logging.info("Server accepted payload (target=%s)", target_url)
             return True
         except requests.RequestException as exc:
-            logging.warning("Failed to post scan %s: %s", payload.get("scan_id"), exc)
+            logging.warning(
+                "Failed to post payload to %s (%s): %s",
+                target_url,
+                payload.get("scan_id") or payload.get("job_id"),
+                exc,
+            )
             return False
 
-    def enqueue(self, payload: dict, retries: int = 0) -> None:
-        logging.info("Queueing scan %s for retry", payload.get("scan_id"))
+    def enqueue(self, target_url: str, payload: dict, retries: int = 0) -> None:
+        logging.info(
+            "Queueing payload for retry (target=%s, id=%s)",
+            target_url,
+            payload.get("scan_id") or payload.get("job_id"),
+        )
         self.conn.execute(
-            "INSERT INTO scan_queue (payload, retries, created_at) VALUES (?, ?, ?)",
-            (json.dumps(payload), retries, time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
+            "INSERT INTO scan_queue (target, payload, retries, created_at) VALUES (?, ?, ?, ?)",
+            (
+                target_url,
+                json.dumps(payload),
+                retries,
+                time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            ),
         )
         self.conn.commit()
 
-    def send_or_queue(self, payload: dict) -> None:
-        if not self._post(payload):
-            self.enqueue(payload, payload.get("retries", 0))
+    def send_or_queue(self, target_url: str, payload: dict) -> None:
+        if not self._post(target_url, payload):
+            self.enqueue(target_url, payload, payload.get("retries", 0))
 
     def drain(self, limit: int = 20) -> bool:
         cursor = self.conn.execute(
-            "SELECT id, payload, retries FROM scan_queue ORDER BY id ASC LIMIT ?",
+            "SELECT id, target, payload, retries FROM scan_queue ORDER BY id ASC LIMIT ?",
             (limit,),
         )
         rows = cursor.fetchall()
         processed = False
-        for row_id, payload_json, retries in rows:
+        for row_id, target_url, payload_json, retries in rows:
             payload = json.loads(payload_json)
             payload["retries"] = retries + 1
-            if self._post(payload):
+            if self._post(target_url, payload):
                 self.conn.execute("DELETE FROM scan_queue WHERE id=?", (row_id,))
                 self.conn.commit()
                 processed = True
@@ -353,6 +381,22 @@ class ScanTransmitter:
         cursor = self.conn.execute("SELECT COUNT(*) FROM scan_queue")
         (count,) = cursor.fetchone()
         return int(count or 0)
+
+    def send_logistics_job(self, part_code: str, to_location: str) -> None:
+        if not self.logistics_enabled:
+            return
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        payload = {
+            "job_id": f"job-{uuid.uuid4().hex}",
+            "part_code": part_code,
+            "from_location": self.logistics_default_from or "UNKNOWN",
+            "to_location": to_location,
+            "status": self.logistics_status or "completed",
+            "requested_at": timestamp,
+            "updated_at": timestamp,
+            "retries": 0,
+        }
+        self.send_or_queue(self.logistics_api_url, payload)
 
 
 def iter_serial_candidates():
@@ -521,7 +565,8 @@ def main() -> None:
                     "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     "retries": 0,
                 }
-                transmitter.send_or_queue(payload)
+                transmitter.send_or_queue(transmitter.scan_api_url, payload)
+                transmitter.send_logistics_job(code_a, code_b)
             transmitter.drain()
             print(f"[STATE] transition -> WAIT_A (completed) with B={code_b}")
             state = "WAIT_A"
