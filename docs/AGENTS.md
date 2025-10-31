@@ -34,12 +34,11 @@
 - ロールバックが必要な場合は必ずユーザーへ確認する。
 - ログや診断コマンド結果は再現可能な形で共有する。
 
-## 7. 今後整備するドキュメント（案）
-- `README.md`: プロジェクト概要とセットアップ手順。
-- `RUNBOOK.md`: 運用・障害対応手順。
-- `docs/requirements.md`: 要件、優先順位、決定事項の集約。
-- `docs/test-notes/2025-10-26-handheld-send.md`: 最新の送信テスト記録。
-- `docs/security-overview.md` / `docs/security-requirements-response.md`: セキュリティ関連情報（必要になったタイミングで作成）。
-- `CHANGELOG.md`: 適用済みの変更履歴（必要に応じて作成）。
+## 7. 参考リンク
+- ドキュメント索引: `docs/docs-index.md`
+- ドキュメント運用ガイドライン: `docs/documentation-guidelines.md`
+- 要件・決定事項: `docs/requirements.md`
+- ハンディリーダ手順: `docs/handheld-reader.md`
+- テスト記録: `docs/test-notes/2025-10-26-handheld-send.md`
 
-ドキュメントを追加・更新する際は本ファイルを出発点として手順を明確化すること。
+ドキュメントを追加・更新する際は本ファイルと索引を出発点として手順を明確化すること。
