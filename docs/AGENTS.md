@@ -10,7 +10,7 @@
 ## 2. 初動タスク
 1. リポジトリ構造と初期要件を整理する（必要に応じてユーザーへヒアリング）。
 2. ドキュメント整備方針は `docs/documentation-guidelines.md` に従う。
-3. OnSiteLogistics 向けの `docs/requirements.md` を早期に用意し、決定事項・未決事項・TODO を集約する。
+3. OnSiteLogistics 向けの `docs/requirements.md` を早期に用意し、決定事項・未決事項・TODO を集約する。機能要件は ✅/☐ の表形式で進捗を管理し、作業完了ごとに反映する。
 
 ## 3. ドキュメント運用ポリシー
 - ドキュメント種別と掲載範囲は `docs/documentation-guidelines.md` を準拠とし、重複記載を避ける。
