@@ -12,10 +12,12 @@
 - `docs/AGENTS.md`: エージェント向け運用指針
 - `docs/documentation-guidelines.md`: 文書運用ルール
 - `docs/requirements.md`: 要件・決定事項・未決課題
+- `docs/docs-index.md`: 文書の索引と更新履歴
+- `RUNBOOK.md`: 運用手順・トラブルシュート
 - `docs/handheld-reader.md`: ハンディリーダ開発ノート
 - 初回導入やサーバー疎通手順は `docs/handheld-reader.md` の「実行コマンドメモ」「セットアップログ」を参照してください。
 
-今後の構成として、セットアップや運用手順が固まり次第 `RUNBOOK.md` やサーバー連携仕様書を追加します。
+今後はセキュリティ文書やサーバー連携仕様書を整備し、追加した際には `docs/docs-index.md` と本READMEを更新します。
 
 ## 設定ファイル
 - サンプル: `config/config.sample.json`
