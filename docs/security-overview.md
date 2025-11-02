@@ -19,7 +19,7 @@
 
 ## 3. 運用ルール
 - 設定変更・スクリプト更新は作業前後で `docs/logistics-audit-plan.md` へ記録し、CHANGELOG に反映する。
-- API トークン更新時は `install_client_config.sh` で再配置 → `check_connection.sh` で疎通確認 → Pi5 側 `docs/security-overview.md` に記載された手順と整合を取る。
+- API トークン更新時は `install_client_config.sh` で再配置 → `check_connection.sh` で疎通確認 → RaspberryPiServer RUNBOOK（4章）・OnSiteLogistics RUNBOOK（3章）の手順と整合を取る。
 - 端末の持ち出しは最小限とし、使用後は施錠可能な保管庫へ格納。バッテリー交換・故障交換時はシリアル番号を記録する。
 - 障害調査時にログを取得する際は機微情報（トークン・個人情報）が含まれていないか確認し、必要に応じてマスキングする。
 

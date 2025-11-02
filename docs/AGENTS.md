@@ -16,6 +16,7 @@
 - ドキュメント種別と掲載範囲は `docs/documentation-guidelines.md` を準拠とし、重複記載を避ける。
 - この `docs/AGENTS.md` はエージェント作業のハンドブックとして維持する。運用手順は RUNBOOK、未実装タスクは `docs/requirements.md` へ記録する。
 - コマンドや設定例はコードブロックで提示し、日本語で説明を補記する。
+- Pi5 / Window A / ハンディ端末で共有する API トークンは RaspberryPiServer RUNBOOK（4章）と OnSiteLogistics RUNBOOK（3章）に従い、ユーザーがステップごとに実行した結果を確認しながらワンステップずつ進める。
 - 重要な決定事項は `docs/requirements.md` の決定事項セクションへ反映し、関連ドキュメントからリンクする。
 
 ## 4. 作業前チェックリスト

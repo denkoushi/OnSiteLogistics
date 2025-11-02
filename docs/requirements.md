@@ -50,7 +50,7 @@ Raspberry Pi Zero 2 W を用いたハンディリーダ（Window D）の役割�
 - **性能**: A/B 2 回のスキャン入力から送信完了まで 2 秒以内を目標。通信失敗時はキュー投入まで 1 秒以内。電子ペーパー更新は部分更新 0.5 秒以内。
 - **可用性**: 電源投入後 15 秒以内にサービス起動。systemd により異常終了時は自動再起動。キューの最大保持期間は 7 日間を上限とし、溢れた場合は警告ログ。
 - **保守性**: 設定は `/etc/onsitelogistics/config.json` に集約し、`scripts/install_client_config.sh` で初期化。ログは `/var/log/onsitelogistics/handheld.log`（想定）へ出力し、`journalctl -u handheld@` で追跡可能とする。
-- **セキュリティ**: API トークンは Pi5 が発行・ローテーション。設定ファイルの権限は `600` を保持し、送信先は HTTPS/TLS も将来的に検討する。
+- **セキュリティ**: API トークンは Pi5 が発行・ローテーション。設定ファイルの権限は `600` を保持し、送信先は HTTPS/TLS も将来的に検討する。ローテーション手順は RaspberryPiServer RUNBOOK（4章）および OnSiteLogistics RUNBOOK（3章）に従い、Pi5／Window A と同じ値を `/etc/onsitelogistics/config.json` に反映する。
 
 ---
 
@@ -70,6 +70,7 @@ Raspberry Pi Zero 2 W を用いたハンディリーダ（Window D）の役割�
 | 2025-10-xx | SQLite ベースの再送キューと `--drain-only` CLI を導入 | 通信断時の手動再送・統計確認を容易にするため |
 | 2025-10-xx | ローテーションログ（10 MiB × 3）と `/proc` 監視を整備 | 長時間稼働時のログ肥大・メモリ枯渇を防ぐため |
 | 2025-10-xx | `/api/logistics/jobs` 連携は任意オプションとして実装、運用投入前に Window A と調整 | 物流データの扱いを段階的に導入するため |
+| 2025-11-05 | Pi5 / Window A / ハンディで同一 API トークンを共有し、RUNBOOK にローテーション手順を追加 | 認証エラー防止と紛失時の迅速な失効を実現するため |
 
 日付は実施時点で更新し、関連コミット・テストログを `docs/test-notes/` に記録すること。
 

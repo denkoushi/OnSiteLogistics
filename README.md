@@ -42,6 +42,7 @@
   }
   ```
   ハンディリーダで A/B コードを読み取るたびに、所在更新（`/api/v1/scans`）に加えて搬送完了レコードを `/api/logistics/jobs` へ送信します。通信断時はスキャン送信と同じキューで自動再送されます。
+- Pi5・Window A・ハンディ端末で共有する API トークンは RaspberryPiServer RUNBOOK（4章）と OnSiteLogistics RUNBOOK（3章）に従い、同じ値を `/etc/onsitelogistics/config.json` へ反映してください。トークンをローテーションした際は `scripts/install_client_config.sh --api-token <token>` を再実行し、`check_connection.sh` で疎通確認を行います。
 
 ## テスト
 
